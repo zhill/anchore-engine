@@ -437,6 +437,16 @@ class BaseService(object, metaclass=ServiceMeta):
         logger.info('Service registration complete')
         return True
 
+    def shutdown(self):
+        """
+        Set service state to down
+        :return:
+        """
+        try:
+            servicestatus.set_status(service_record=self.service_record, up=False, available=False, busy=False, message='shut down', detail='Cleanly shutdown', update_db=True)
+        except Exception as e:
+            logger.exception('Unhandled exception on service shutdown path. Service may be marked as up in db if transaction was not completed')
+
     def initialize(self, global_configuration, db_connect=True, require_system_user_auth=None):
         """
         Service initialization that requires the service config loaded and available but before registration of the service

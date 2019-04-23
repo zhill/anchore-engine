@@ -359,7 +359,12 @@ class WsgiApiServiceMaker(object):
 
         ret_svc = StreamServerEndpointService(endpoint=endpoint, factory=site)
         ret_svc.setName(self.anchore_service.name)
-        
+
+        def shutdown_service():
+            logger.info("Shutting down anchore stuff now!!!!")
+            self.anchore_service.shutdown()
+
+        reactor.addSystemEventTrigger('before', 'shutdown', shutdown_service)
         return ret_svc
 
     def _default_version_rewrite(self, request):
@@ -373,6 +378,9 @@ class WsgiApiServiceMaker(object):
             logger.error("rewrite exception: " + str(err))
             raise err
 
+
+def shutdown():
+    logger.info("Shutting down anchore stuff now!!!!")
 
 def dump_stats():
     """
