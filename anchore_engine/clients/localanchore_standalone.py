@@ -20,7 +20,7 @@ import anchore_engine.clients.skopeo_wrapper
 #from anchore.anchore_utils import read_kvfile_todict
 import anchore_engine.common.images
 from anchore_engine.analyzers.utils import read_kvfile_todict
-from anchore_engine.utils import AnchoreException
+from anchore_engine.utils import AnchoreException, convert_docker_history_to_dockerfile
 
 
 from anchore_engine import utils
@@ -690,23 +690,13 @@ def get_image_metadata_v2(staging_dirs, imageDigest, imageId, manifest_data, doc
         raise err
 
     if not dockerfile_contents:
-        # get dockerfile_contents (translate history to guessed DF)
-        dockerfile_contents = "FROM scratch\n"
-        for hel in docker_history:
-            patt = re.match("^/bin/sh -c #\(nop\) +(.*)", hel['CreatedBy'])
-            if patt:
-                cmd = patt.group(1)
-            elif hel['CreatedBy']:
-                cmd = "RUN " + hel['CreatedBy']
-            else:
-                cmd = None
-            if cmd:
-                dockerfile_contents = dockerfile_contents + cmd + "\n"        
+        dockerfile_contents = convert_docker_history_to_guessed_dockerfile(docker_history)
         dockerfile_mode = "Guessed"
     elif not dockerfile_mode:
         dockerfile_mode = "Actual"
 
     return(docker_history, layers, dockerfile_contents, dockerfile_mode, imageArch)
+
 
 def unpack(staging_dirs, layers):
     outputdir = staging_dirs['outputdir']

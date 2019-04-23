@@ -449,3 +449,25 @@ def convert_bytes_size(size_str):
     else:
         raise ValueError("Invalid size string: {}".format(size_str))
 
+
+def convert_docker_history_to_dockerfile(docker_history_entries):
+    """
+    Convert a docker history to a pseudo-dockerfile by transforming the entries and adding a FROM scratch line
+
+    :param docker_history_entries: list of docker history dicts, one for each line
+    :return: str of dockerfile
+    """
+
+    dockerfile_contents = "FROM scratch\n"
+    for hel in docker_history_entries:
+        patt = re.match(r"^/bin/sh -c #\(nop\) +(.*)", hel['CreatedBy'])
+        if patt:
+            cmd = patt.group(1)
+        elif hel['CreatedBy']:
+            cmd = "RUN " + hel['CreatedBy']
+        else:
+            cmd = None
+        if cmd:
+            dockerfile_contents = dockerfile_contents + cmd + "\n"
+
+    return dockerfile_contents
