@@ -118,8 +118,8 @@ def _search_tarfilenames_for_file(tarfilenames, searchfile):
         ret = "./{}".format(searchfile)
     elif "/{}".format(searchfile) in tarfilenames:
         ret = "/{}".format(searchfile)
-    elif re.sub("^/", "", searchfile) in tarfilenames:
-        ret = re.sub("^/", "", searchfile)
+    elif re.sub(r"^/", "", searchfile) in tarfilenames:
+        ret = re.sub(r"^/", "", searchfile)
     return(ret)
 
 def get_memberhash(tfl):
@@ -187,11 +187,11 @@ def get_distro_from_squashtar(squashtar, unpackdir=None):
                     l = l.strip()
                     try:
                         distro = vers = None
-                        patt = re.match(".*CentOS.*", l)
+                        patt = re.match(r".*CentOS.*", l)
                         if patt:
                             distro = 'centos'
 
-                        patt = re.match(".*(\d+\.\d+).*", l)
+                        patt = re.match(r".*(\d+\.\d+).*", l)
                         if patt:
                             vers = patt.group(1)
 
@@ -208,7 +208,7 @@ def get_distro_from_squashtar(squashtar, unpackdir=None):
             try:
                 with tfl.extractfile(tfl.getmember(metamap["busybox"])) as FH:
                     for line in FH.readlines():
-                        patt = re.match(b".*BusyBox (v[\d|\.]+) \(.*", line)
+                        patt = re.match(rb".*BusyBox (v[\d|\.]+) \(.*", line)
                         if patt:
                             meta['DISTROVERS'] = anchore_engine.utils.ensure_str(patt.group(1))
             except Exception as err:
@@ -220,10 +220,10 @@ def get_distro_from_squashtar(squashtar, unpackdir=None):
                 for line in FH.readlines():
                     line = anchore_engine.utils.ensure_str(line)
                     line = line.strip()
-                    patt = re.match("(\d+)\..*", line)
+                    patt = re.match(r"(\d+)\..*", line)
                     if patt:
                         meta['DISTROVERS'] = patt.group(1)
-                    elif re.match(".*sid.*", line):
+                    elif re.match(r".*sid.*", line):
                         meta['DISTROVERS'] = 'unstable'
 
     if not meta['DISTRO']:
@@ -283,14 +283,14 @@ def get_distro_flavor(distro, version, likedistro=None):
             if ret['flavor'] != 'Unknown':
                 break
 
-    patt = re.match("(\d*)\.*(\d*)", version)
+    patt = re.match(r"(\d*)\.*(\d*)", version)
     if patt:
         (vmaj, vmin) = patt.group(1,2)
         if vmaj:
             ret['version'] = vmaj
             ret['likeversion'] = vmaj
 
-    patt = re.match("(\d+)\.*(\d+)\.*(\d+)", version)
+    patt = re.match(r"(\d+)\.*(\d+)\.*(\d+)", version)
     if patt:
         (vmaj, vmin, submin) = patt.group(1,2,3)
         if vmaj and vmin:
@@ -456,8 +456,8 @@ def get_files_from_squashtar(squashtar, unpackdir=None):
             #for member in tfl.getmembers():
             for member in list(memberhash.values()):
                 filename = member.name
-                filename = re.sub("^\./", "/", filename)
-                if not re.match("^/", filename):
+                filename = re.sub(r"^\./", "/", filename)
+                if not re.match(r"^/", filename):
                     filename = "/{}".format(filename)
 
                 finfo = {}
@@ -506,7 +506,7 @@ def get_files_from_squashtar(squashtar, unpackdir=None):
                     finfo['type'] = 'UNKNOWN'
 
                 if finfo['type'] == 'slink':
-                    if re.match("^/", finfo['linkdst']):
+                    if re.match(r"^/", finfo['linkdst']):
                         fullpath = finfo['linkdst']
                     else:
                         dstlist = finfo['linkdst'].split('/')
@@ -563,7 +563,7 @@ def rpm_get_all_packages_from_squashtar(unpackdir, squashtar):
             l = l.strip()
             l = str(l, 'utf-8')
             #l = l.decode('utf8')
-            (name, vers, rel, arch) = re.match('(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4)
+            (name, vers, rel, arch) = re.match(r'(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4)
             rpms[name] = {'version':vers, 'release':rel, 'arch':arch}
     except Exception as err:
         print(err.output)
@@ -716,7 +716,7 @@ def dpkg_prepdb_from_squashtar(unpackdir, squashtar):
             dpkgmembers = []
             for member in tfl.getmembers():
                 filename = member.name
-                filename = re.sub("^\./|^/", "", filename)
+                filename = re.sub(r"^\./|^/", "", filename)
                 if filename.startswith("var/lib/dpkg") or filename.startswith("usr/share/doc"):
                     dpkgmembers.append(member)
             tfl.extractall(path=os.path.join(dpkgtmpdir, "rootfs"), members=dpkgmembers)
@@ -740,7 +740,7 @@ def rpm_prepdb_from_squashtar(unpackdir, squashtar):
             rpmmembers = []
             for member in tfl.getmembers():
                 filename = member.name
-                filename = re.sub("^\./|^/", "", filename)
+                filename = re.sub(r"^\./|^/", "", filename)
                 if filename.startswith("var/lib/rpm"):
                     rpmmembers.append(member)
 
@@ -875,7 +875,7 @@ def deb_copyright_getlics(licfile):
         lictext = FH.read()
         for l in lictext.splitlines():
             l = l.strip()
-            m = re.match("License: (\S*)", l)
+            m = re.match(r"License: (\S*)", l)
             if m:
                 lic = m.group(1)
                 if lic:
@@ -928,7 +928,7 @@ def apkg_parse_apkdb(apkdbfh):
                 thefiles = list()
                 thepath = ""
 
-            patt = re.match("(\S):(.*)", l)
+            patt = re.match(r"(\S):(.*)", l)
             if patt:
                 (k, v) = patt.group(1,2)
                 apkg['type'] = "APKG"
@@ -936,7 +936,7 @@ def apkg_parse_apkdb(apkdbfh):
                     thename = v
                     apkg['name'] = v
                 elif k == 'V':
-                    vpatt = re.match("(\S*)-(\S*)", v)
+                    vpatt = re.match(r"(\S*)-(\S*)", v)
                     if vpatt:
                         (vers, rel) = vpatt.group(1, 2)
                     else:
@@ -1009,7 +1009,7 @@ def gem_parse_meta(gem):
     try:
         for line in gem.splitlines():
             line = line.strip()
-            line = re.sub("\.freeze", "", line)
+            line = re.sub(r"\.freeze", "", line)
 
             # look for the unicode \u{} format and try to convert to something python can use
             try:
@@ -1018,7 +1018,7 @@ def gem_parse_meta(gem):
                 patt = re.match(r".*("+mat+").*", replline)
                 while(patt):
                     replstr = ""
-                    subpatt = re.match("\\\\u{(.*)}", patt.group(1))
+                    subpatt = re.match(r"\\\\u{(.*)}", patt.group(1))
                     if subpatt:
                         chars = subpatt.group(1).split()
                         for char in chars:
@@ -1032,39 +1032,39 @@ def gem_parse_meta(gem):
             except Exception as err:
                 pass
 
-            patt = re.match(".*\.name *= *(.*) *", line)
+            patt = re.match(r".*\.name *= *(.*) *", line)
             if patt:
                 name = json.loads(patt.group(1))
 
-            patt = re.match(".*\.homepage *= *(.*) *", line)
+            patt = re.match(r".*\.homepage *= *(.*) *", line)
             if patt:
                 sourcepkg = json.loads(patt.group(1))
 
-            patt = re.match(".*\.version *= *(.*) *", line)
+            patt = re.match(r".*\.version *= *(.*) *", line)
             if patt:
                 v = json.loads(patt.group(1))
                 latest = v
                 versions.append(latest)
 
-            patt = re.match(".*\.licenses *= *(.*) *", line)
+            patt = re.match(r".*\.licenses *= *(.*) *", line)
             if patt:
-                lstr = re.sub("^\[|\]$", "", patt.group(1)).split(',')
+                lstr = re.sub(r"^\[|\]$", "", patt.group(1)).split(',')
                 for thestr in lstr:
-                    thestr = re.sub(' *" *', "", thestr)
+                    thestr = re.sub(r' *" *', "", thestr)
                     lics.append(thestr)
 
-            patt = re.match(".*\.authors *= *(.*) *", line)
+            patt = re.match(r".*\.authors *= *(.*) *", line)
             if patt:
-                lstr = re.sub("^\[|\]$", "", patt.group(1)).split(',')
+                lstr = re.sub(r"^\[|\]$", "", patt.group(1)).split(',')
                 for thestr in lstr:
-                    thestr = re.sub(' *" *', "", thestr)
+                    thestr = re.sub(r' *" *', "", thestr)
                     origins.append(thestr)
 
-            patt = re.match(".*\.files *= *(.*) *", line)
+            patt = re.match(r".*\.files *= *(.*) *", line)
             if patt:
-                lstr = re.sub("^\[|\]$", "", patt.group(1)).split(',')
+                lstr = re.sub(r"^\[|\]$", "", patt.group(1)).split(',')
                 for thestr in lstr:
-                    thestr = re.sub(' *" *', "", thestr)
+                    thestr = re.sub(r' *" *', "", thestr)
                     rfiles.append(thestr)
 
     except Exception as err:
@@ -1226,7 +1226,7 @@ def rpm_get_file_package_metadata_from_squashtar(unpackdir, squashtar):
                 if l:
                     try:
                         (fname, fdigest, fmode, fgroup, fuser, fsize, fpackage, fflags, fdigestalgonum)= l.split("|ANCHORETOK|")
-                        fname = re.sub('""', '', fname)
+                        fname = re.sub(r'""', '', fname)
                         cfile = False
                         if 'c' in str(fflags):
                             cfile = True
@@ -1279,9 +1279,9 @@ def dpkg_get_file_package_metadata_from_squashtar(unpackdir, squashtar):
                 for line in buf.splitlines():
                     #line = str(line.strip(), 'utf8')
                     line = line.strip()
-                    if re.match("^Conffiles:.*", line):
+                    if re.match(r"^Conffiles:.*", line):
                         fmode = True
-                    elif re.match("^.*:.*", line):
+                    elif re.match(r"^.*:.*", line):
                         fmode = False
                     else:
                         if fmode:
@@ -1302,10 +1302,10 @@ def dpkg_get_file_package_metadata_from_squashtar(unpackdir, squashtar):
     try:
         if os.path.exists(metapath):
             for f in os.listdir(metapath):
-                patt = re.match("(.*)\.md5sums", f)
+                patt = re.match(r"(.*)\.md5sums", f)
                 if patt:
                     pkgraw = patt.group(1)
-                    patt = re.match("(.*):.*", pkgraw)
+                    patt = re.match(r"(.*):.*", pkgraw)
                     if patt:
                         pkg = patt.group(1)
                     else:
@@ -1313,10 +1313,10 @@ def dpkg_get_file_package_metadata_from_squashtar(unpackdir, squashtar):
 
                     metafiles[pkg] = os.path.join(metapath, f)
 
-                patt = re.match("(.*)\.conffiles", f)
+                patt = re.match(r"(.*)\.conffiles", f)
                 if patt:
                     pkgraw = patt.group(1)
-                    patt = re.match("(.*):.*", pkgraw)
+                    patt = re.match(r"(.*):.*", pkgraw)
                     if patt:
                         pkg = patt.group(1)
                     else:
@@ -1341,7 +1341,7 @@ def dpkg_get_file_package_metadata_from_squashtar(unpackdir, squashtar):
                     try:
                         (csum, fname) = line.split()
                         fname = '/' + fname
-                        fname = re.sub("\/\/", "\/", fname)
+                        fname = re.sub(r"\/\/", "\/", fname)
 
                         if fname not in result:
                             result[fname] = []
@@ -1413,7 +1413,7 @@ def apk_get_file_package_metadata_from_squashtar(unpackdir, squashtar):
                 for line in buf.splitlines():
                     #line = str(line.strip(), 'utf8')
                     line = line.strip()
-                    patt = re.match("(.):(.*)", line)
+                    patt = re.match(r"(.):(.*)", line)
                     if patt:
                         atype = patt.group(1)
                         aval = patt.group(2)
@@ -1441,7 +1441,7 @@ def apk_get_file_package_metadata_from_squashtar(unpackdir, squashtar):
                         elif atype == 'Z':
                             raw_csum = aval
                             fname = '/'.join(['/'+fpath, fname])
-                            therealfile_apk = re.sub("\/+", "/", '/'.join([unpackdir, 'rootfs', fname]))
+                            therealfile_apk = re.sub(r"\/+", "/", '/'.join([unpackdir, 'rootfs', fname]))
                             therealfile_fs = os.path.realpath(therealfile_apk)
                             if therealfile_apk == therealfile_fs:
                                 try:
@@ -1483,8 +1483,8 @@ def read_kvfile_todict(file):
             l = l.strip()
             #l = l.strip().decode('utf8')
             if l:
-                (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
-                k = re.sub("____", " ", k)
+                (k, v) = re.match(r'(\S*)\s*(.*)', l).group(1, 2)
+                k = re.sub(r"____", " ", k)
                 ret[k] = v
 
     return (ret)
@@ -1508,7 +1508,7 @@ def write_kvfile_fromlist(file, list, delim=' '):
     with open(file, 'w') as OFH:
         for l in list:
             for i in range(0,len(l)):
-                l[i] = re.sub("\s", "____", l[i])
+                l[i] = re.sub(r"\s", "____", l[i])
             thestr = delim.join(l) + "\n"
             #thestr = thestr.encode('utf8')
             OFH.write(thestr)
@@ -1520,7 +1520,7 @@ def write_kvfile_fromdict(file, indict):
         for k in list(dict.keys()):
             if not dict[k]:
                 dict[k] = "none"
-            cleank = re.sub("\s+", "____", k)
+            cleank = re.sub(r"\s+", "____", k)
             thestr = ' '.join([cleank, dict[k], '\n'])
             #thestr = thestr.encode('utf8')
             OFH.write(thestr)

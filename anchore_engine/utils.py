@@ -30,7 +30,7 @@ SIZE_UNITS = {
     'tb': T_BYTES
 }
 
-BYTES_REGEX = re.compile('^([0-9]+)([kmgt]b)?$')
+BYTES_REGEX = re.compile(r'^([0-9]+)([kmgt]b)?$')
 
 
 def process_cve_status(old_cves_result=None, new_cves_result=None):
@@ -272,20 +272,20 @@ def parse_dockerimage_string(instr):
     if bad_chars:
         raise ValueError("bad character(s) {} in dockerimage string input ({})".format(bad_chars, instr))
 
-    if re.match("^sha256:.*", instr):
+    if re.match(r"^sha256:.*", instr):
         registry = 'docker.io'
         digest = instr
 
-    elif len(instr) == 64 and not re.findall("[^0-9a-fA-F]+",instr):
+    elif len(instr) == 64 and not re.findall(r"[^0-9a-fA-F]+",instr):
         imageId = instr
     else:
 
         # get the host/port
-        patt = re.match("(.*?)/(.*)", instr)
+        patt = re.match(r"(.*?)/(.*)", instr)
         if patt:
             a = patt.group(1)
             remain = patt.group(2)
-            patt = re.match("(.*?):(.*)", a)
+            patt = re.match(r"(.*?):(.*)", a)
             if patt:
                 host = patt.group(1)
                 port = patt.group(2)
@@ -310,12 +310,12 @@ def parse_dockerimage_string(instr):
             remain = instr
 
         # get the repo/tag
-        patt = re.match("(.*)@(.*)", remain)
+        patt = re.match(r"(.*)@(.*)", remain)
         if patt:
             repo = patt.group(1)
             digest = patt.group(2)
         else:
-            patt = re.match("(.*):(.*)", remain)
+            patt = re.match(r"(.*):(.*)", remain)
             if patt:
                 repo = patt.group(1)
                 tag = patt.group(2)
