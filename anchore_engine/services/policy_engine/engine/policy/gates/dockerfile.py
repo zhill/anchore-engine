@@ -4,6 +4,7 @@ from anchore_engine.services.policy_engine.engine.policy.params import delim_par
     InputValidator, EnumStringParameter, TriggerParameter, CommaDelimitedStringListParameter, \
     CommaDelimitedNumberListParameter, BooleanStringParameter
 from anchore_engine.services.policy_engine.engine.logs import get_logger
+from anchore_engine.utils import convert_docker_history_to_dockerfile
 
 log = get_logger()
 
@@ -279,6 +280,11 @@ class DockerfileGate(Gate):
         content = context.params.get('dockerfile')
         if not content:
             content = context.params.get('docker_history')
+            if content:
+                content = convert_docker_history_to_dockerfile(content)
+            else:
+                content = ""
+
             context.data['dockerfile_mode'] = 'guessed'
         else:
             context.data['dockerfile_mode'] = 'actual'
