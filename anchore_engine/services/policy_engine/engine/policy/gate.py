@@ -72,7 +72,7 @@ class ExecutionContext(object):
 
     def __init__(self, db_session, configuration, **params):
         self.db = db_session
-        self.configuration = configuration
+        self.configuration = configuration if configuration is not None else {}
         self.params = params
         self.data = {}
 

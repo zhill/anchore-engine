@@ -50,7 +50,7 @@ class DockerfileModeCheckedBaseTrigger(BaseTrigger):
     def evaluate(self, image_obj, context):
         if not hasattr(context, 'data') or not context.data.get('prepared_dockerfile'):
             return
-        elif self.__actual_dockerfile_only__ and (image_obj.dockerfile_mode is None or image_obj.dockerfile_mode.lower() != 'actual'):
+        elif self.__actual_dockerfile_only__ and (context.data.get('dockerfile_mode') is None or context.data.get('dockerfile_mode').lower() != 'actual'):
             return
         else:
             return self._evaluate(image_obj, context)
@@ -69,7 +69,7 @@ class ParameterizedDockerfileModeBaseTrigger(BaseTrigger):
     def evaluate(self, image_obj, context):
         if not hasattr(context, 'data') or not context.data.get('prepared_dockerfile'):
             return
-        elif self.actual_dockerfile_only.value() and (image_obj.dockerfile_mode is None or image_obj.dockerfile_mode.lower() != 'actual'):
+        elif self.actual_dockerfile_only.value() and (context.data.get('dockerfile_mode') is None or context.data.get('dockerfile_mode').lower() != 'actual'):
             return
         else:
             return self._evaluate(image_obj, context)
@@ -85,7 +85,7 @@ class EffectiveUserTrigger(DockerfileModeCheckedBaseTrigger):
     user = CommaDelimitedStringListParameter(name='users', example_str='root,docker', description='User names to check against as the effective user (last user entry) in the images history.', is_required=True, validator=TypeValidator('string'), sort_order=1)
     allowed_type = EnumStringParameter(name='type', enum_values=['whitelist', 'blacklist'], example_str='blacklist', description='How to treat the provided user names.', is_required=True, sort_order=2)
 
-    _sanitize_regex = '\s*USER\s+\[?([^\]]+)\]?\s*'
+    _sanitize_regex = r'\s*USER\s+\[?([^\]]+)\]?\s*'
 
     def _evaluate(self, image_obj, context):
         rule_users = self.user.value()
@@ -181,8 +181,8 @@ class ExposedPortsTrigger(ParameterizedDockerfileModeBaseTrigger):
         for line in expose_lines:
             matchstr = None
             line = line.strip()
-            if re.match("^\s*(EXPOSE|" + 'EXPOSE'.lower() + ")\s+(.*)", line):
-                matchstr = re.match("^\s*(EXPOSE|" + 'EXPOSE'.lower() + ")\s+(.*)", line).group(2)
+            if re.match(r"^\s*(EXPOSE|" + 'EXPOSE'.lower() + r")\s+(.*)", line):
+                matchstr = re.match(r"^\s*(EXPOSE|" + 'EXPOSE'.lower() + r")\s+(.*)", line).group(2)
 
             if matchstr:
                 iexpose = matchstr.split()
@@ -253,7 +253,12 @@ class DockerfileGate(Gate):
 
     def prepare_context(self, image_obj, context):
         """
-        Pre-processes the image's dockerfile.
+        Pre-processes the image's dockerfile, as provided in context.params.
+
+        Expects to find: context.params['dockerfile'] to optionally have the real dockerfile for the tag to evaluated,
+        and/or
+        context.params['docker_history'] to optionally have the docker-history output for the tag to be evaluated.
+
         Leaves the context with a dictionary of dockerfile lines by directive.
         e.g. 
         context.data['dockerfile']['RUN'] = ['RUN apt-get update', 'RUN blah']
@@ -266,19 +271,26 @@ class DockerfileGate(Gate):
         # Optimization by single-pass parsing the docker file instead of one per trigger eval.
         # unknown/known is up to each trigger
 
-        if image_obj.dockerfile_mode is None or image_obj.dockerfile_mode.lower() == "unknown":
-            return
+        # if image_obj.dockerfile_mode is None or image_obj.dockerfile_mode.lower() == "unknown":
+        #     return
 
         context.data['prepared_dockerfile'] = {}
 
-        if image_obj.dockerfile_contents:
+        content = context.params.get('dockerfile')
+        if not content:
+            content = context.params.get('docker_history')
+            context.data['dockerfile_mode'] = 'guessed'
+        else:
+            context.data['dockerfile_mode'] = 'actual'
+
+        if content:
             linebuf = ""
-            for line in image_obj.dockerfile_contents.splitlines():
+            for line in content.splitlines():
                 line = line.strip()
                 if line and not line.startswith('#'):
-                    patt = re.match(".*\\\$", line)
+                    patt = re.match(r".*\\\$", line)
                     if patt:
-                        line = re.sub("\\\$", "", line)
+                        line = re.sub(r"\\\$", "", line)
                         linebuf = linebuf + line
                     else:
                         linebuf = linebuf + line
@@ -297,5 +309,7 @@ class DockerfileGate(Gate):
                 else:
                     continue
                     # Skip comment lines in the dockerfile
+        else:
+            return
 
         return context

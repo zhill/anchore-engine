@@ -1,8 +1,10 @@
 """
 Gate Unit tests
 """
+import base64
 import pytest
 from anchore_engine.subsys import logger
+from anchore_engine.utils import ensure_bytes, ensure_str
 from test.integration.services.policy_engine.engine.policy.gates import GateUnitTest, cls_anchore_db, cls_test_data_env2, cls_no_feeds_test_env
 from anchore_engine.db import Image
 
@@ -20,7 +22,7 @@ test_image.distro_name = 'debian'
 test_image.distro_version = '9'
 test_image.user_id = '0'
 test_image.layer_info_json = ['layer1', 'layer2']
-test_image.dockerfile_contents = 'FROM SCRATCH\nHEALTHCHECK blah\n'
+test_image.dockefile_contents = 'FROM SCRATCH\nHEALTHCHECK blah\n'
 test_image.dockerfile_mode = 'Guessed'
 
 dockerfile_from = 'FROM library/centos:latest\nRUN apt-get install\nCMD echo helloworld\n'
@@ -41,7 +43,8 @@ class DockerfileGateTest(GateUnitTest):
 
     def test_nodockerfile(self):
         t, gate, test_context = self.get_initialized_trigger(NoDockerfile.__trigger_name__)
-        test_image.dockerfile_contents = ''
+        test_context.params['docker_history'] = None
+        test_context.params['docker_history'] = dockerfile_scratch
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
@@ -49,19 +52,20 @@ class DockerfileGateTest(GateUnitTest):
 
     def test_exposetrigger(self):
         t, gate, test_context = self.get_initialized_trigger(ExposedPortsTrigger.__trigger_name__, ports='8000', type='whitelist')
-        test_image.dockerfile_contents = dockerfile_expose
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
         self.assertEqual(0, len(t.fired))
 
         t, gate, test_context = self.get_initialized_trigger(ExposedPortsTrigger.__trigger_name__, ports='80', type='whitelist')
+        test_context.params['docker_history'] = dockerfile_expose
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
         self.assertEqual(1, len(t.fired))
 
         t, gate, test_context = self.get_initialized_trigger(ExposedPortsTrigger.__trigger_name__, type='blacklist', ports='80,8000')
+        test_context.params['docker_history'] = dockerfile_expose
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
@@ -70,28 +74,30 @@ class DockerfileGateTest(GateUnitTest):
 
     def test_directivechecktrigger_exists(self):
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='COPY', check='exists')
-        test_image.dockerfile_contents = 'COPY /root /rootcmd\n'
+        test_context.params['docker_history'] = 'COPY /root /rootcmd\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 1)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='COPY', check='exists')
-        test_image.dockerfile_contents = 'RUN echo hello\n'
+        test_context.params['docker_history'] = 'RUN echo hello\n'
         test_context = gate.prepare_context(test_image, test_context)
+        logger.info('Context: {}'.format(test_context.data))
         t.evaluate(test_image, test_context)
+        logger.info(str(t.fired))
         self.assertEqual(len(t.fired), 0)
 
     def test_directivechecktrigger_notexists(self):
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='COPY', check='not_exists')
-        test_image.dockerfile_contents = 'COPY /root /rootcmd\n'
+        test_context.params['docker_history'] = 'COPY /root /rootcmd\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 0)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='COPY', check='not_exists')
-        test_image.dockerfile_contents = 'RUN echo "root hello copy 123"\n'
+        test_context.params['docker_history'] = 'RUN echo "root hello copy 123"\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 1)
@@ -99,7 +105,7 @@ class DockerfileGateTest(GateUnitTest):
 
     def test_directivechecktrigger_equals(self):
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='RUN', check='=', value='yum update -y')
-        test_image.dockerfile_contents = 'RUN yum update -y\nENV abs\nCMD echo hi\n'
+        test_context.params['docker_history'] = 'RUN yum update -y\nENV abs\nCMD echo hi\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 1)
@@ -107,7 +113,7 @@ class DockerfileGateTest(GateUnitTest):
 
     def test_directivechecktrigger_notequals(self):
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='RUN', check='!=', value='testvalue')
-        test_image.dockerfile_contents = 'RUN yum update -y\nENV abs\nCMD echo hi\n'
+        test_context.params['docker_history'] = 'RUN yum update -y\nENV abs\nCMD echo hi\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 1)
@@ -115,14 +121,14 @@ class DockerfileGateTest(GateUnitTest):
 
     def test_instructionchecktrigger_like(self):
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='USER', check='like', value='testuser.*')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nUSER testuser123\nRUN echo hi\nUSER root\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nUSER testuser123\nRUN echo hi\nUSER root\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 1)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='USER', check='like', value='testuser.*')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nUSER test_user\nRUN echo hi\nUSER root\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nUSER test_user\nRUN echo hi\nUSER root\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 0)
@@ -130,14 +136,14 @@ class DockerfileGateTest(GateUnitTest):
 
     def test_instructionchecktrigger_notlike(self):
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='USER', check='not_like', value='testuser.*')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER root\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER root\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 1)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='USER', check='not_like', value='testuser.*')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 0)
@@ -145,14 +151,14 @@ class DockerfileGateTest(GateUnitTest):
 
     def test_instructionchecktrigger_in(self):
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='USER', check='in', value='testuser,someuser')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 1)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='USER', check='in', value='root,someuser')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 0)
@@ -160,14 +166,14 @@ class DockerfileGateTest(GateUnitTest):
 
     def test_instructionchecktrigger_notin(self):
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='USER', check='not_in', value='root')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 1)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(InstructionCheckTrigger.__trigger_name__, instruction='USER', check='not_in', value='root,testuser')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 0)
@@ -176,84 +182,84 @@ class DockerfileGateTest(GateUnitTest):
 
     def test_effectiveuser_trigger(self):
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='root', type='whitelist')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 1)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='testuser', type='whitelist')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(0, len(t.fired))
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='testuser', type='whitelist')
-        test_image.dockerfile_contents = 'USER testuser\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER root\n'
+        test_context.params['docker_history'] = 'USER testuser\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER root\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 1)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='root', type='blacklist')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 0)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='testuser', type='blacklist')
-        test_image.dockerfile_contents = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
+        test_context.params['docker_history'] = 'RUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER testuser\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 1)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='testuser', type='blacklist')
-        test_image.dockerfile_contents = 'USER testuser\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER root\n'
+        test_context.params['docker_history'] = 'USER testuser\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER root\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 0)
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='testuser, nginx', type='blacklist')
-        test_image.dockerfile_contents = 'USER testuser\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER root\n'
+        test_context.params['docker_history'] = 'USER testuser\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER root\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(0, len(t.fired))
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='nginx', type='blacklist')
-        test_image.dockerfile_contents = 'USER testuser\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER nginx\n'
+        test_context.params['docker_history'] = 'USER testuser\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi\nUSER nginx\n'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(1, len(t.fired))
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='user1', type='whitelist')
-        test_image.dockerfile_contents = 'USER [testuser]\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi'
+        test_context.params['docker_history'] = 'USER [testuser]\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(1, len(t.fired))
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='user1', type='whitelist')
-        test_image.dockerfile_contents = 'USER testuser\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi'
+        test_context.params['docker_history'] = 'USER testuser\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(1, len(t.fired))
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='user1', type='whitelist')
-        test_image.dockerfile_contents = 'USER user1\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi'
+        test_context.params['docker_history'] = 'USER user1\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(0, len(t.fired))
         logger.info('Fired: {}'.format([x.json() for x in t.fired]))
 
         t, gate, test_context = self.get_initialized_trigger(EffectiveUserTrigger.__trigger_name__, users='user1', type='whitelist')
-        test_image.dockerfile_contents = 'USER [user1]\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi'
+        test_context.params['docker_history'] = 'USER [user1]\nRUN apt-get install blah1 balh2 blah2 testuser1\nRUN echo hi'
         test_context = gate.prepare_context(test_image, test_context)
         t.evaluate(test_image, test_context)
         self.assertEqual(len(t.fired), 0)

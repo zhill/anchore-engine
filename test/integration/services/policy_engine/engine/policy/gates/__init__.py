@@ -60,10 +60,22 @@ class GateUnitTest(unittest.TestCase):
     __default_image__ = 'node'
     gate_clazz = None
 
-    def get_initialized_trigger(self, trigger_name, config=None, **kwargs):
+    def get_initialized_trigger(self, trigger_name, config=None, ctx_params=None, **kwargs):
+        """
+        Setup an initialized trigger and context
+
+        :param trigger_name: name of trigger to instantiate
+        :param config:  configuration dict for the execution context
+        :param ctx_params: params dict for the execution context
+        :param kwargs: params for the trigger instantiation
+        :return:
+        """
         clazz = self.gate_clazz.get_trigger_named(trigger_name)
         trigger = clazz(self.gate_clazz, **kwargs)
-        context = ExecutionContext(db_session=get_thread_scoped_session(), configuration=config)
+        if ctx_params is None:
+            ctx_params = {}
+
+        context = ExecutionContext(db_session=get_thread_scoped_session(), configuration=config, **ctx_params)
         gate = trigger.gate_cls()
 
         return trigger, gate, context
