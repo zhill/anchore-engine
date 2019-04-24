@@ -370,14 +370,10 @@ paths:
         in: path
         type: string
         required: true
-      - name: "tag"
-        in: query
-        type: string
-        required: true
-      - name: "bundle"
+      - name: evaluation_request
         in: body
         schema:
-          $ref: "#/definitions/PolicyBundle"
+          $ref: "#/definitions/PolicyEvaluationRequest"
       responses:
         200:
           description: "Policy Evaluation result"
@@ -904,6 +900,9 @@ definitions:
       bundle:
         type: object
         description: The bundle used for evaluation
+      bundle_digest:
+        type: string
+        description: A digest computed of the bundle content, the digest algorithm is part of the str (e.g. sha256:xxxx)
       matched_mapping_rule:
         type: object
         description: >-
@@ -1141,3 +1140,19 @@ definitions:
       enabled:
         type: boolean
         description: Is evaluation caching enabled on this node
+  PolicyEvaluationRequest:
+    type: object
+    description: An object for requesting a policy evaluation that includes the tag, bundle, and other metadata for servicing the request.
+    required:
+    - bundle
+    properties:
+      tag:
+        type: string
+        description: The docker pullable string to use for evaluating the context of the image content (e.g. docker.io/library/nginx:latest)
+        x-nullable: true
+      b64_dockerfile:
+        type: string
+        description: Base64 encoded dockerfile. Only the actual dockerfile provided by the user should be set to this parameter. Optional.
+        x-nullable: true
+      bundle:
+        $ref: "#/definitions/PolicyBundle"

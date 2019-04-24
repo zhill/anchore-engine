@@ -4,6 +4,7 @@ Controller for all synchronous web operations. These are handled by the main web
 Async operations are handled by teh async_operations controller.
 
 """
+import base64
 import connexion
 import datetime
 import enum
@@ -178,7 +179,7 @@ def delete_image(user_id, image_id):
             try:
                 conn_timeout = ApiRequestContextProxy.get_service().configuration.get('catalog_client_conn_timeout', DEFAULT_CACHE_CONN_TIMEOUT)
                 read_timeout = ApiRequestContextProxy.get_service().configuration.get('catalog_client_read_timeout', DEFAULT_CACHE_READ_TIMEOUT)
-                mgr = EvaluationCacheManager(img, None, None, conn_timeout, read_timeout)
+                mgr = EvaluationCacheManager(img, None, conn_timeout, read_timeout)
                 mgr.flush()
             except Exception as ex:
                 log.exception("Could not delete evaluations for image {}/{} in the cache. May be orphaned".format(user_id, image_id))
@@ -237,9 +238,15 @@ class EvaluationCacheManager(object):
 
     __cache_bucket__ = 'policy-engine-evaluation-cache'
 
-    def __init__(self, image_object, tag, bundle, storage_conn_timeout=-1, storage_read_timeout=-1):
+    def __init__(self, image_object, request, storage_conn_timeout=-1, storage_read_timeout=-1):
         self.image = image_object
-        self.tag = tag
+        self.tag = request.get('tag')
+        bundle = request.get('bundle')
+        self.dockerfile = request.get('b64_dockerfile')
+
+        # This is updated to include a hash of the dockerfile with the tag to track dockerfile updates and invalidate the cache
+        self.tag_key = self.tag + '::sha256:' + utils.ensure_str(hashlib.sha256(utils.ensure_bytes(self.dockerfile)).hexdigest())
+
         if bundle:
             self.bundle = bundle
             self.bundle_id = None
@@ -249,11 +256,11 @@ class EvaluationCacheManager(object):
             else:
                 self.bundle_id = bundle['id']
 
-            self.bundle_digest = self._digest_for_bundle()
+            self._bundle_digest = self._digest_for_bundle()
         else:
             self.bundle = None
             self.bundle_id = None
-            self.bundle_digest = None
+            self._bundle_digest = None
 
         self._catalog_client = internal_client_for(catalog.CatalogClient, userId=self.image.user_id)
         self._default_catalog_conn_timeout = storage_conn_timeout
@@ -261,6 +268,15 @@ class EvaluationCacheManager(object):
 
     def _digest_for_bundle(self):
         return hashlib.sha256(utils.ensure_bytes(json.dumps(self.bundle, sort_keys=True))).hexdigest()
+
+    @property
+    def bundle_digest(self):
+        # This is a property for clean upgrade from previous versions that did not use the sha256: prefix.
+        # External callers can get the digest algo info but the internal cache key remains stable
+        if self._bundle_digest:
+            return 'sha256:' + self._bundle_digest
+        else:
+            return self._bundle_digest
 
     def refresh(self):
         """
@@ -329,7 +345,7 @@ class EvaluationCacheManager(object):
         """
 
         session = get_session()
-        return session.query(CachedPolicyEvaluation).filter_by(user_id=self.image.user_id, image_id=self.image.id, eval_tag=self.tag, bundle_id=self.bundle_id).all()
+        return session.query(CachedPolicyEvaluation).filter_by(user_id=self.image.user_id, image_id=self.image.id, eval_tag=self.tag_key, bundle_id=self.bundle_id).all()
 
     def save(self, result):
         """
@@ -341,8 +357,9 @@ class EvaluationCacheManager(object):
         eval.user_id = self.image.user_id
         eval.image_id = self.image.id
         eval.bundle_id = self.bundle_id
-        eval.bundle_digest = self.bundle_digest
-        eval.eval_tag = self.tag
+        eval.bundle_digest = self._bundle_digest
+        # This is updated to include a hash of the dockerfile with the tag to track dockerfile updates and invalidate the cache
+        eval.eval_tag = self.tag_key
 
         # Send to archive
         key = 'sha256:' + hashlib.sha256(utils.ensure_bytes(str(eval.key_tuple()))).hexdigest()
@@ -382,7 +399,7 @@ class EvaluationCacheManager(object):
             metrics.counter_inc(name='anchore_policy_evaluation_cache_misses_notfound')
             return EvaluationCacheManager.CacheStatus.missing
 
-        if cache_entry.bundle_digest == self.bundle_digest:
+        if cache_entry.bundle_digest == self._bundle_digest:
             # A feed sync has occurred since the eval was done or the image has been updated/reloaded, so inputs can have changed. Must be stale
             if self._inputs_changed(cache_entry.last_modified):
                 metrics.counter_inc(name='anchore_policy_evaluation_cache_misses_stale')
@@ -411,7 +428,7 @@ class EvaluationCacheManager(object):
 
 @flask_metrics.do_not_track()
 @authorizer.requires_account(with_types=INTERNAL_SERVICE_ALLOWED)
-def check_user_image_inline(user_id, image_id, tag, bundle):
+def check_user_image_inline(user_id, image_id, evaluation_request):
     """
     Execute a policy evaluation using the info in the request body including the bundle content
 
@@ -428,9 +445,18 @@ def check_user_image_inline(user_id, image_id, tag, bundle):
 
     try:
         # Input validation
+        tag = evaluation_request.get('tag')
         if tag is None:
             # set tag value to a value that only matches wildcards
             tag = '*/*:*'
+
+        dockerfile_encoded = evaluation_request.get('b64_dockerfile')
+        dockerfile = utils.ensure_str(base64.decodebytes(utils.ensure_bytes(dockerfile_encoded))) if dockerfile_encoded else None
+
+        bundle = evaluation_request.get('bundle')
+
+        if not bundle:
+            return make_response_error('Request must contain bundle content', in_httpcode=400), 400
 
         try:
             img_obj = db.query(Image).get((image_id, user_id))
@@ -447,7 +473,7 @@ def check_user_image_inline(user_id, image_id, tag, bundle):
                 try:
                     conn_timeout = ApiRequestContextProxy.get_service().configuration.get('catalog_client_conn_timeout', DEFAULT_CACHE_CONN_TIMEOUT)
                     read_timeout = ApiRequestContextProxy.get_service().configuration.get('catalog_client_read_timeout', DEFAULT_CACHE_READ_TIMEOUT)
-                    cache_mgr = EvaluationCacheManager(img_obj, tag, bundle, conn_timeout, read_timeout)
+                    cache_mgr = EvaluationCacheManager(img_obj, evaluation_request, conn_timeout, read_timeout)
                 except ValueError as err:
                     log.warn('Could not leverage cache due to error in bundle data: {}'.format(err))
                     cache_mgr = None
@@ -488,12 +514,17 @@ def check_user_image_inline(user_id, image_id, tag, bundle):
 
         eval_result = None
         if not problems:
+            docker_history = img_obj.docker_history_json
+
+            if not dockerfile:
+                dockerfile = img_obj.dockerfile_contents
+
             # Execute bundle
             try:
-                eval_result = executable_bundle.execute(img_obj, tag, ExecutionContext(db_session=db, configuration={}))
+                eval_result = executable_bundle.execute(img_obj, tag, ExecutionContext(db_session=db, configuration={}, params={'dockerfile': dockerfile, 'docker_history': docker_history}))
             except Exception as e:
                 log.exception('Error executing policy bundle {} against image {} w/tag {}: {}'.format(bundle['id'], image_id, tag, e))
-                return make_response_error('Internal bundle evaluation error', detail='Cannot execute given policy against the image due to errors executing the policy bundle: {}'.format(e), in_httpcode=500), 500
+                return make_response_error('Internal bundle evaluation error', details={'message': 'Cannot execute given policy against the image due to errors executing the policy bundle: {}'.format(e)}, in_httpcode=500), 500
         else:
             # Construct a failure eval with details on the errors and mappings to send to client
             eval_result = build_empty_error_execution(img_obj, tag, executable_bundle, errors=problems, warnings=[])
@@ -505,6 +536,7 @@ def check_user_image_inline(user_id, image_id, tag, bundle):
         resp.image_id = image_id
         resp.tag = tag
         resp.bundle = bundle
+        resp.bundle_digest = cache_mgr.bundle_digest
         resp.matched_mapping_rule = eval_result.executed_mapping.json() if eval_result.executed_mapping else False
         resp.last_modified = int(time.time())
         resp.final_action = eval_result.bundle_decision.final_decision.name
@@ -542,7 +574,7 @@ def check_user_image_inline(user_id, image_id, tag, bundle):
     except Exception as e:
         db.rollback()
         log.exception('Failed processing bundle evaluation: {}'.format(e))
-        return make_response_error('Unexpected internal error', detail=str(e), in_httpcode=500), 500
+        return make_response_error('Unexpected internal error', details={'message': str(e)}, in_httpcode=500), 500
     finally:
         db.close()
 

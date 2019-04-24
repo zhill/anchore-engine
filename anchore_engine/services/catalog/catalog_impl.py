@@ -1160,6 +1160,15 @@ def perform_policy_evaluation(userId, imageDigest, dbsession, evaltag=None, poli
     try:
         obj_store = anchore_engine.subsys.object_store.manager.get_manager()
         image_record = db_catalog_image.get(imageDigest, userId, session=dbsession)
+        if image_record.get('dockerfile_mode', '').lower() == 'actual':
+            for tag_rec in image_record.get('image_detail', []):
+                if evaltag == '{}/{}:{}'.format(tag_rec['registry'], tag_rec['repo'], tag_rec['tag']):
+                    dockerfile_b64 = tag_rec['dockerfile']
+                    break
+            else:
+                dockerfile_b64 = None
+        else:
+            dockerfile_b64 = None
 
         annotations = {}
         try:
@@ -1203,7 +1212,7 @@ def perform_policy_evaluation(userId, imageDigest, dbsession, evaltag=None, poli
         logger.debug("calling policy_engine: " + str(userId) + " : " + str(imageId) + " : " + str(fulltag))
 
         try:
-            curr_evaluation_result = client.check_user_image_inline(user_id=userId, image_id=imageId, tag=fulltag, policy_bundle=policy_bundle)
+            curr_evaluation_result = client.check_user_image_inline(user_id=userId, image_id=imageId, tag=fulltag, policy_bundle=policy_bundle, b64_dockerfile=dockerfile_b64)
         except Exception as err:
             raise err
         curr_final_action = curr_evaluation_result.get('final_action', '').upper()

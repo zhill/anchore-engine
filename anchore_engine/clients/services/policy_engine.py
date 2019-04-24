@@ -1,7 +1,8 @@
+import base64
 import json
 from anchore_engine.clients.services.internal import InternalServiceClient
 from anchore_engine.clients.services.http import anchy_get, anchy_post, anchy_delete
-
+from anchore_engine.utils import ensure_bytes, ensure_str
 
 class PolicyEngineClient(InternalServiceClient):
     __service__ = 'policy_engine'
@@ -23,8 +24,14 @@ class PolicyEngineClient(InternalServiceClient):
     def delete_image(self, user_id, image_id):
         return self.call_api(anchy_delete, 'users/{user_id}/images/{image_id}', path_params={'user_id': user_id, 'image_id': image_id})
 
-    def check_user_image_inline(self, user_id, image_id, tag, policy_bundle):
-        return self.call_api(anchy_post, 'users/{user_id}/images/{image_id}/check_inline', path_params={'user_id': user_id, 'image_id': image_id}, query_params={'tag': tag}, body=json.dumps(policy_bundle))
+    def check_user_image_inline(self, user_id, image_id, tag, policy_bundle, b64_dockerfile=None):
+        payload = {
+            'tag': tag,
+            'bundle': policy_bundle,
+            'b64_dockerfile': b64_dockerfile
+        }
+
+        return self.call_api(anchy_post, 'users/{user_id}/images/{image_id}/check_inline', path_params={'user_id': user_id, 'image_id': image_id}, body=json.dumps(payload, sort_keys=True))
 
     def get_image_vulnerabilities(self, user_id, image_id, force_refresh=False, vendor_only=None):
         return self.call_api(anchy_get, 'users/{user_id}/images/{image_id}/vulnerabilities', path_params={'user_id': user_id, 'image_id': image_id}, query_params={'force_refresh': force_refresh, 'vendor_only': vendor_only})

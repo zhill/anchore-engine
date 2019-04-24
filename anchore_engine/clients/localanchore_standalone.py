@@ -690,7 +690,7 @@ def get_image_metadata_v2(staging_dirs, imageDigest, imageId, manifest_data, doc
         raise err
 
     if not dockerfile_contents:
-        dockerfile_contents = convert_docker_history_to_guessed_dockerfile(docker_history)
+        dockerfile_contents = convert_docker_history_to_dockerfile(docker_history)
         dockerfile_mode = "Guessed"
     elif not dockerfile_mode:
         dockerfile_mode = "Actual"
