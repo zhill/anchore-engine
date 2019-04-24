@@ -369,7 +369,8 @@ def parse_dockerimage_string(instr):
 
 
 def ensure_bytes(obj):
-    return obj.encode('utf-8') if type(obj) != bytes else obj
+    return obj.encode('utf-8') if type(obj) not in [bytes, None.__class__] else obj
+
 
 
 def ensure_str(obj):
