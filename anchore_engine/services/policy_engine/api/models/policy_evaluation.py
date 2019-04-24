@@ -16,7 +16,7 @@ class PolicyEvaluation(Model):
     Do not edit the class manually.
     """
 
-    def __init__(self, user_id=None, image_id=None, tag=None, bundle=None, matched_mapping_rule=None, matched_whitelisted_images_rule=None, matched_blacklisted_images_rule=None, result=None, created_at=None, last_modified=None, final_action=None, final_action_reason=None, evaluation_problems=None):  # noqa: E501
+    def __init__(self, user_id=None, image_id=None, tag=None, bundle=None, bundle_digest=None, matched_mapping_rule=None, matched_whitelisted_images_rule=None, matched_blacklisted_images_rule=None, result=None, created_at=None, last_modified=None, final_action=None, final_action_reason=None, evaluation_problems=None):  # noqa: E501
         """PolicyEvaluation - a model defined in Swagger
 
         :param user_id: The user_id of this PolicyEvaluation.  # noqa: E501
@@ -27,6 +27,8 @@ class PolicyEvaluation(Model):
         :type tag: str
         :param bundle: The bundle of this PolicyEvaluation.  # noqa: E501
         :type bundle: object
+        :param bundle_digest: The digest of the bundle  # noqa: E501
+        :type bundle_digest: str
         :param matched_mapping_rule: The matched_mapping_rule of this PolicyEvaluation.  # noqa: E501
         :type matched_mapping_rule: object
         :param matched_whitelisted_images_rule: The matched_whitelisted_images_rule of this PolicyEvaluation.  # noqa: E501
@@ -51,6 +53,7 @@ class PolicyEvaluation(Model):
             'image_id': str,
             'tag': str,
             'bundle': object,
+            'bundle_digest': str,
             'matched_mapping_rule': object,
             'matched_whitelisted_images_rule': object,
             'matched_blacklisted_images_rule': object,
@@ -67,6 +70,7 @@ class PolicyEvaluation(Model):
             'image_id': 'image_id',
             'tag': 'tag',
             'bundle': 'bundle',
+            'bundle_digest': 'bundle_digest',
             'matched_mapping_rule': 'matched_mapping_rule',
             'matched_whitelisted_images_rule': 'matched_whitelisted_images_rule',
             'matched_blacklisted_images_rule': 'matched_blacklisted_images_rule',
@@ -82,6 +86,7 @@ class PolicyEvaluation(Model):
         self._image_id = image_id
         self._tag = tag
         self._bundle = bundle
+        self._bundle_digest = bundle_digest
         self._matched_mapping_rule = matched_mapping_rule
         self._matched_whitelisted_images_rule = matched_whitelisted_images_rule
         self._matched_blacklisted_images_rule = matched_blacklisted_images_rule
@@ -196,6 +201,14 @@ class PolicyEvaluation(Model):
             raise ValueError("Invalid value for `bundle`, must not be `None`")  # noqa: E501
 
         self._bundle = bundle
+
+    @property
+    def bundle_digest(self):
+        return self._bundle_digest
+
+    @bundle_digest.setter
+    def bundle_digest(self, bundle_digest):
+        self._bundle_digest = bundle_digest
 
     @property
     def matched_mapping_rule(self):

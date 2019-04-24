@@ -245,7 +245,7 @@ class EvaluationCacheManager(object):
         self.dockerfile = request.get('b64_dockerfile')
 
         # This is updated to include a hash of the dockerfile with the tag to track dockerfile updates and invalidate the cache
-        self.tag_key = self.tag + '::sha256:' + utils.ensure_str(hashlib.sha256(utils.ensure_bytes(self.dockerfile)).hexdigest())
+        self.tag_key = self.tag + '::' + ('sha256:' + utils.ensure_str(hashlib.sha256(utils.ensure_bytes(self.dockerfile)).hexdigest()) if self.dockerfile else '')
 
         if bundle:
             self.bundle = bundle
@@ -256,27 +256,18 @@ class EvaluationCacheManager(object):
             else:
                 self.bundle_id = bundle['id']
 
-            self._bundle_digest = self._digest_for_bundle()
+            self.bundle_digest = self._digest_for_bundle()
         else:
             self.bundle = None
             self.bundle_id = None
-            self._bundle_digest = None
+            self.bundle_digest = None
 
         self._catalog_client = internal_client_for(catalog.CatalogClient, userId=self.image.user_id)
         self._default_catalog_conn_timeout = storage_conn_timeout
         self._default_catalog_read_timeout = storage_read_timeout
 
     def _digest_for_bundle(self):
-        return hashlib.sha256(utils.ensure_bytes(json.dumps(self.bundle, sort_keys=True))).hexdigest()
-
-    @property
-    def bundle_digest(self):
-        # This is a property for clean upgrade from previous versions that did not use the sha256: prefix.
-        # External callers can get the digest algo info but the internal cache key remains stable
-        if self._bundle_digest:
-            return 'sha256:' + self._bundle_digest
-        else:
-            return self._bundle_digest
+        return 'sha256:' + hashlib.sha256(utils.ensure_bytes(json.dumps(self.bundle, sort_keys=True))).hexdigest()
 
     def refresh(self):
         """
@@ -357,7 +348,7 @@ class EvaluationCacheManager(object):
         eval.user_id = self.image.user_id
         eval.image_id = self.image.id
         eval.bundle_id = self.bundle_id
-        eval.bundle_digest = self._bundle_digest
+        eval.bundle_digest = self.bundle_digest
         # This is updated to include a hash of the dockerfile with the tag to track dockerfile updates and invalidate the cache
         eval.eval_tag = self.tag_key
 
@@ -399,7 +390,7 @@ class EvaluationCacheManager(object):
             metrics.counter_inc(name='anchore_policy_evaluation_cache_misses_notfound')
             return EvaluationCacheManager.CacheStatus.missing
 
-        if cache_entry.bundle_digest == self._bundle_digest:
+        if cache_entry.bundle_digest == self.bundle_digest:
             # A feed sync has occurred since the eval was done or the image has been updated/reloaded, so inputs can have changed. Must be stale
             if self._inputs_changed(cache_entry.last_modified):
                 metrics.counter_inc(name='anchore_policy_evaluation_cache_misses_stale')
@@ -467,17 +458,18 @@ def check_user_image_inline(user_id, image_id, evaluation_request):
             log.info('Request for evaluation of image that cannot be found: user_id = {}, image_id = {}'.format(user_id, image_id))
             return make_response_error('Image not found', in_httpcode=404), 404
 
+        # Always initialize, used for things like bundle digest even if cache is disabled.
+        try:
+            conn_timeout = ApiRequestContextProxy.get_service().configuration.get('catalog_client_conn_timeout', DEFAULT_CACHE_CONN_TIMEOUT)
+            read_timeout = ApiRequestContextProxy.get_service().configuration.get('catalog_client_read_timeout', DEFAULT_CACHE_READ_TIMEOUT)
+            cache_mgr = EvaluationCacheManager(img_obj, evaluation_request, conn_timeout, read_timeout)
+        except ValueError as err:
+            log.warn('Could not leverage cache due to error in bundle data: {}'.format(err))
+            cache_mgr = None
+
         if evaluation_cache_enabled:
             timer2 = time.time()
             try:
-                try:
-                    conn_timeout = ApiRequestContextProxy.get_service().configuration.get('catalog_client_conn_timeout', DEFAULT_CACHE_CONN_TIMEOUT)
-                    read_timeout = ApiRequestContextProxy.get_service().configuration.get('catalog_client_read_timeout', DEFAULT_CACHE_READ_TIMEOUT)
-                    cache_mgr = EvaluationCacheManager(img_obj, evaluation_request, conn_timeout, read_timeout)
-                except ValueError as err:
-                    log.warn('Could not leverage cache due to error in bundle data: {}'.format(err))
-                    cache_mgr = None
-
                 if cache_mgr is None:
                     log.info('Could not initialize cache manager for policy evaluation, skipping cache usage')
                 else:
