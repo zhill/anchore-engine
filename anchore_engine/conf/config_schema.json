@@ -1,0 +1,204 @@
+{
+  "$schema": "http://json-schema.org/schema#",
+  "$id": "http://anchore.com/schemas/engine_config.json",
+  "type": "object",
+  "properties": {
+    "service_dir": {
+      "type": "string",
+      "format": "path"
+    },
+    "tmp_dir": {
+      "type": "string",
+      "format": "path"
+    },
+    "log_level": {
+      "$ref": "#/definitions/LogLevel"
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "enable": {
+          "type": "boolean",
+          "description": "If true, prometheus metrics are enabled and present on the /metrics api route of each service"
+        }
+      }
+    },
+    "image_analyze_timeout_seconds": {
+      "type": "integer",
+      "description": "The number of seconds that an image may be in 'analyzing' state before the catalog re-inserts it to the queue and resets state to 'not_analyzed'"
+    },
+    "cleanup_images": {
+      "type": "boolean",
+      "description": "Flush image data after analysis on worker nodes if true, else leave behind working data. This is primarily used for debugging analyzers."
+    },
+    "internal_ssl_verify": {
+      "type": "boolean",
+      "description": "If true, do ssl verification of certs for internal api calls. If false, skip verification"
+    },
+    "auto_restart_services": {
+      "type": "boolean",
+      "description": "If true, the anchore-manager process watcher will restart any exited service processes automatically"
+    },
+    "default_bundle_file": {
+      "type": "string"
+    },
+    "allow_awsecr_iam_auto": {
+      "type": "boolean"
+    },
+    "skopeo_global_timeout": {
+      "type": "integer"
+    },
+    "global_client_read_timeout": {
+      "type": "number"
+    },
+    "global_client_connect_timeout": {
+      "type": "number"
+    },
+    "feeds": {
+      "type": "object"
+    },
+    "credentials": {
+      "type": "object"
+    },
+    "webhooks": {
+      "type": "object"
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/ApiServiceConfiguration"
+          },
+          {
+            "$ref": "#/definitions/CatalogServiceConfiguration"
+          },
+          {
+            "$ref": "#/definitions/PolicyEngineServiceConfiguration"
+          },
+          {
+            "$ref": "#/definitions/SimpleQueueServiceConfiguration"
+          },
+          {
+            "$ref": "#/definitions/AnalyzerServiceConfiguration"
+          },
+          {
+            "$ref": "#/definitions/BaseServiceConfiguration"
+          }
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "LogLevel": {
+      "type": "string",
+      "enum": [
+        "fatal",
+        "FATAL",
+        "error",
+        "ERROR",
+        "warn",
+        "WARN",
+        "info",
+        "INFO",
+        "debug",
+        "DEBUG",
+        "spew",
+        "SPEW"
+      ]
+    },
+    "BaseServiceConfiguration": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "listen",
+        "port"
+      ],
+      "properties": {
+        "enabled": { "type":  "boolean", "description": "If true, the service may be started, if false, it is blocked from startup"},
+        "listen": {"type":  "string"},
+        "port": {"type": "integer"},
+        "endpoint_hostname": {
+          "type": "string"
+        },
+        "log_level": {
+          "$ref": "#/definitions/LogLevel"
+        }
+    }
+    },
+    "ApiServiceConfiguration": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/BaseServiceConfiguration"
+        },
+        {
+          "properties": {
+            "test": { "type":  "string"}
+          }
+        }
+      ]
+    },
+    "CatalogServiceConfiguration": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/BaseServiceConfiguration"
+        },
+        {
+          "properties": {
+
+          }
+        }
+      ]
+    },
+    "PolicyEngineServiceConfiguration": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/BaseServiceConfiguration"
+        },
+        {
+          "properties": {
+            "test": { "type":  "string"}
+          }
+        }
+      ]
+    },
+    "SimpleQueueServiceConfiguration": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/BaseServiceConfiguration"
+        },
+        {
+          "properties": {
+            "test": { "type":  "string"}
+          }
+        }
+      ]
+    },
+    "AnalyzerServiceConfiguration": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/BaseServiceConfiguration"
+        },
+        {
+          "properties": {
+            "analyzer_driver": {
+              "type": "string",
+              "enum": [
+                "nodocker",
+                null
+              ]
+            },
+            "cycle_timer_seconds" : { "type": "integer" },
+            "cycle_timers": {
+              "type": "object",
+              "properties": {
+                "image_analyzer": {"type": "integer"}
+              }
+            },
+            "max_threads": { "type": "integer" }
+          }
+        }
+      ]
+    }
+  }
+}

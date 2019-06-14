@@ -6,6 +6,7 @@ import uuid
 import time
 import yaml
 import shutil
+from jsonschema import validate
 
 from pkg_resources import resource_filename
 
@@ -18,7 +19,7 @@ DEFAULT_CONFIG = {
     'tmp_dir': '/tmp',
     'log_level': 'INFO',
     'metrics': {'enable': False},
-    'image_analyze_timeout_seconds': '36000',
+    'image_analyze_timeout_seconds': 36000,
     'cleanup_images': False,
     'internal_ssl_verify': True,
     'auto_restart_services': True,
@@ -322,6 +323,14 @@ def validate_config(config, validate_params=None):
     :return: true if passes validation, false otherwise
     """
     ret = True
+    validation_schema_path = resource_filename("anchore_engine", 'conf/config_schema.json')
+    with open(validation_schema_path) as f:
+        validation_schema = json.load(f)
+        try:
+            validate(config, validation_schema)
+        except Exception as e:
+            logger.error('Invalid configuration: {}'.format(e))
+            raise
 
     if validate_params is None:
         validate_params = default_required_config_params
