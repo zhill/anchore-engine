@@ -135,7 +135,7 @@ def list_image_users(page=None):
     if not db:
         db = get_session()
     try:
-        users = db.query(Image.user_id).group_by(Image.user_id).all()
+        users = Image.users_with_images(db)
         img_user_set = set([rec[0] for rec in users])
     finally:
         db.close()
@@ -153,7 +153,7 @@ def list_user_images(user_id):
     """
     db = get_session()
     try:
-        imgs = [msg_mapper.db_to_msg(i).to_dict() for i in db.query(Image).filter(Image.user_id == user_id).all()]
+        imgs = [msg_mapper.db_to_msg(i).to_dict() for i in Image.all_for_account(user_id, db)]
     finally:
         db.close()
 
@@ -172,7 +172,7 @@ def delete_image(user_id, image_id):
     db = get_session()
     try:
         log.info('Deleting image {}/{} and all associated resources'.format(user_id, image_id))
-        img = db.query(Image).get((image_id, user_id))
+        img = Image.get(user_id, image_id, db)
         if img:
             for pkg_vuln in img.vulnerabilities():
                 db.delete(pkg_vuln)
@@ -436,7 +436,7 @@ def check_user_image_inline(user_id, image_id, tag, bundle):
             tag = '*/*:*'
 
         try:
-            img_obj = db.query(Image).get((image_id, user_id))
+            img_obj = Image.get(user_id, image_id, db)
         except:
             return make_response_error('Image not found', in_httpcode=404), 404
 
@@ -595,7 +595,7 @@ def get_image_vulnerabilities(user_id, image_id, force_refresh=False, vendor_onl
     # Has image?
     db = get_session()
     try:
-        img = db.query(Image).get((image_id, user_id))
+        img = Image.get(user_id, image_id, db)
         vulns = []
         if not img:
             return make_response_error('Image not found', in_httpcode=404), 404
@@ -1330,7 +1330,7 @@ def list_artifacts(user_id, image_id, artifact_type):
     db = get_session()
     try:
         log.info('Getting retrieved files from image {}/{}'.format(user_id, image_id))
-        img = db.query(Image).get((image_id, user_id))
+        img = Image.get(user_id, image_id, db)
         if img:
             handlers = artifact_handlers.get(artifact_type)
             if not handlers:

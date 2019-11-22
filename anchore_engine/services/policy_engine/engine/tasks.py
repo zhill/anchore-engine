@@ -109,7 +109,7 @@ class FeedsFlushTask(IAsyncTask):
     def execute(self):
         db = get_session()
         try:
-            count = db.query(ImagePackageVulnerability).delete()
+            count = ImagePackageVulnerability.delete_all(db)
             log.info('Deleted {} vulnerability match records in flush'.format(count))
             f = DataFeeds.instance()
             f.flush()
@@ -244,26 +244,26 @@ class FeedsUpdateTask(IAsyncTask):
         db = get_session()
         try:
             # it is critical that these tuples are in proper index order for the primary key of the Images object so that subsequent get() operation works
-            imgs = [(x.id, x.user_id) for x in db.query(Image).filter(Image.created_at >= from_time, Image.created_at <= to_time)]
+            imgs = [(x.id, x.user_id) for x in Image.created_between(from_time, to_time)]
             log.info('Detected images: {} for rescan'.format(' ,'.join([str(x) for x in imgs]) if imgs else '[]'))
         finally:
             db.rollback()
 
         retry_max = 3
-        for img in imgs:
+        for (img_id, account) in imgs:
             for i in range(retry_max):
                 try:
                     # New transaction for each image to get incremental progress
                     db = get_session()
                     try:
                         # If the type or ordering of 'img' tuple changes, this needs to be updated as it relies on symmetry of that tuple and the identity key of the Image entity
-                        image_obj = db.query(Image).get(img)
+                        image_obj = Image.get(account, img_id, db)
                         if image_obj:
-                            log.info('Rescanning image {} post-vuln sync'.format(img))
+                            log.info('Rescanning image {}/{} post-vuln sync'.format(account, img_id))
                             vulns = rescan_image(image_obj, db_session=db)
                             count += 1
                         else:
-                            log.warn('Failed to lookup image with tuple: {}'.format(str(img)))
+                            log.warn('Failed to lookup image: {}/{}'.format(account, img_id))
 
                         db.commit()
 
@@ -287,7 +287,7 @@ class FeedsUpdateTask(IAsyncTask):
         :return:
         """
 
-        count = db.query(ImagePackageVulnerability).filter(ImagePackageVulnerability.vulnerability_namespace_name == group_name).delete()
+        count = ImagePackageVulnerability.delete_all_in_group(group_name, db)
         log.info('Deleted {} rows in flush for group {}'.format(count, group_name))
 
 
@@ -432,7 +432,7 @@ class ImageLoadTask(IAsyncTask):
         self.start_time = datetime.datetime.utcnow()
         try:
             db = get_session()
-            img = db.query(Image).get((self.image_id, self.user_id))
+            img = Image.get(self.user_id, self.image_id, db)
             if img is not None:
                 if not self.force_reload:
                     log.info('Image {}/{} already found in the system. Will not re-load.'.format(self.user_id, self.image_id))

@@ -9,6 +9,7 @@ from collections import namedtuple
 from sqlalchemy import Column, BigInteger, Integer, LargeBinary, Float, Boolean, String, ForeignKey, Enum, \
     ForeignKeyConstraint, DateTime, types, Text, Index, JSON, or_, and_, Sequence, func, event
 from sqlalchemy.orm import relationship, synonym, joinedload
+from sqlalchemy.orm.session import sessionmaker
 
 from anchore_engine.utils import ensure_str, ensure_bytes
 
@@ -62,8 +63,52 @@ cvss_v3_key = 'cvss_v3'
 cvss_v2_key = 'cvss_v2'
 
 
+class PolicyEngineBase(Base):
+    """
+    Common functions for all policy engine entities
+
+    """
+
+    @classmethod
+    def delete_all(cls, db):
+        return db.query(cls).delete()
+
+    @classmethod
+    def all(cls, db):
+        return db.query(cls).all()
+
+    @classmethod
+    def count(cls, db):
+        return db.query(cls).count()
+
+    @classmethod
+    def save(cls, entity, db, flush_now=False):
+        """
+        Persist the entity, pushed to db at next commit
+        :param entity:
+        :param db:
+        :param flush_now: boolean to execute a flush now. Use with caution as this affects the entire transaction
+        :return:
+        """
+
+        db.add(entity)
+        if flush_now:
+            db.flush()
+
+    @classmethod
+    def merge(cls, entity, db):
+        """
+        Merge the given entity into the db session, returning the new merged state entity
+
+        :param entity:
+        :param db:
+        :return:
+        """
+        return db.merge(entity)
+
+
 # Feeds
-class FeedMetadata(Base, UtilMixin):
+class FeedMetadata(PolicyEngineBase, UtilMixin):
     __tablename__ = 'feeds'
 
     name = Column(String(feed_name_length), primary_key=True)
@@ -74,15 +119,14 @@ class FeedMetadata(Base, UtilMixin):
     last_update = Column(DateTime)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-    @classmethod
-    def get_by_name(cls, name):
-        return FeedMetadata.query.filter(name=name).scalar()
-
     def __repr__(self):
         return '<{}(name={}, access_tier={}, created_at={}>'.format(self.__class__, self.name, self.access_tier, self.created_at.isoformat())
 
+    @classmethod
+    def get(cls, name, db):
+        return db.query(cls).get(name)
 
-class FeedGroupMetadata(Base, UtilMixin):
+class FeedGroupMetadata(PolicyEngineBase, UtilMixin):
     __tablename__ = 'feed_groups'
 
     name = Column(String(feed_group_length), primary_key=True)
@@ -98,7 +142,7 @@ class FeedGroupMetadata(Base, UtilMixin):
                                                                               self.created_at)
 
 
-class GenericFeedDataRecord(Base):
+class GenericFeedDataRecord(PolicyEngineBase):
     """
     A catch-all record for feed data without a specific schema mapping
     """
@@ -112,7 +156,7 @@ class GenericFeedDataRecord(Base):
     data = Column(StringJSON, nullable=False) # TODO: make this a JSON type for dbs that support it
 
 
-class GemMetadata(Base):
+class GemMetadata(PolicyEngineBase):
     __tablename__ = 'feed_data_gem_packages'
 
     name = Column(String(pkg_name_length), primary_key=True)
@@ -132,7 +176,7 @@ class GemMetadata(Base):
         return self.name
 
 
-class NpmMetadata(Base):
+class NpmMetadata(PolicyEngineBase):
     __tablename__ = 'feed_data_npm_packages'
 
     name = Column(String(pkg_name_length), primary_key=True)
@@ -151,7 +195,7 @@ class NpmMetadata(Base):
         return self.name
 
 
-class Vulnerability(Base):
+class Vulnerability(PolicyEngineBase):
     """
     A vulnerability/CVE record. Can come from many sources. Includes some specific fields and also a general
     metadata field that is json encoded string
@@ -263,7 +307,19 @@ class Vulnerability(Base):
 
         return(ret)
 
-class VulnerableArtifact(Base):
+    @classmethod
+    def get(cls, vulnerability_id, group, db):
+        return db.query(cls).get((vulnerability_id, group))
+
+    @classmethod
+    def updated_since(cls, since, group, db):
+        if group is None:
+            return db.query(cls).filter(cls.updated_at >= since).all()
+        else:
+            return db.query(cls).filter(cls.updated_at >= since, cls.namespace_name == group).all()
+
+
+class VulnerableArtifact(PolicyEngineBase):
     """
     An entity affected by a vulnerability, typically an os or application package.
     Typically populated by CVEs with specific vulnerable packages enumerated.
@@ -325,7 +381,7 @@ class VulnerableArtifact(Base):
         return False
 
 
-class FixedArtifact(Base):
+class FixedArtifact(PolicyEngineBase):
     """
     A record indicating an artifact version that marks a fix for a vulnerability
     """
@@ -421,7 +477,7 @@ class FixedArtifact(Base):
         return False
 
 
-class NvdMetadata(Base):
+class NvdMetadata(PolicyEngineBase):
     __tablename__ = 'feed_data_nvd_vulnerabilities'
 
     name = Column(String(vuln_id_length), primary_key=True)
@@ -548,7 +604,7 @@ class NvdMetadata(Base):
         return self.name
 
 
-class NvdV2Metadata(Base):
+class NvdV2Metadata(PolicyEngineBase):
     __tablename__ = 'feed_data_nvdv2_vulnerabilities'
 
     name = Column(String, primary_key=True)
@@ -658,7 +714,7 @@ class NvdV2Metadata(Base):
         return self.name
 
 
-class VulnDBMetadata(Base):
+class VulnDBMetadata(PolicyEngineBase):
     __tablename__ = 'feed_data_vulndb_vulnerabilities'
 
     name = Column(String, primary_key=True)
@@ -1038,7 +1094,7 @@ class VulnDBMetadata(Base):
         return self.name
 
 
-class CpeVulnerability(Base):
+class CpeVulnerability(PolicyEngineBase):
     __tablename__ = 'feed_data_cpe_vulnerabilities'
 
     feed_name = Column(String(feed_name_length), primary_key=True)
@@ -1087,7 +1143,7 @@ class CpeVulnerability(Base):
         return []
 
 
-class CpeV2Vulnerability(Base):
+class CpeV2Vulnerability(PolicyEngineBase):
     __tablename__ = 'feed_data_cpev2_vulnerabilities'
 
     feed_name = Column(String, primary_key=True)
@@ -1161,7 +1217,7 @@ class CpeV2Vulnerability(Base):
         return []
 
 
-class VulnDBCpe(Base):
+class VulnDBCpe(PolicyEngineBase):
     __tablename__ = 'feed_data_vulndb_cpes'
 
     feed_name = Column(String, primary_key=True)
@@ -1251,7 +1307,7 @@ class VulnDBCpe(Base):
 
 # Analysis Data for Images
 
-class ImagePackage(Base):
+class ImagePackage(PolicyEngineBase):
     """
     A package detected in an image by analysis
     """
@@ -1434,7 +1490,6 @@ class ImagePackage(Base):
         else:
             namespace_name = distro_namespace
 
-
         # Match the namespace and package name or src pkg name
         fix_candidates = db.query(FixedArtifact).filter(FixedArtifact.namespace_name == namespace_name,
                                                             or_(FixedArtifact.name == package_obj.name, FixedArtifact.name == package_obj.normalized_src_pkg)).all()
@@ -1447,7 +1502,26 @@ class ImagePackage(Base):
 
         return fix_candidates, vulnerable_candidates
 
-class ImagePackageManifestEntry(Base):
+    @classmethod
+    def with_name_and_distros_like(cls, name, related_distro_names, distro_version, db):
+        return db.query(cls).filter(ImagePackage.distro_name.in_(related_distro_names), ImagePackage.distro_version.like(distro_version + '%'), or_(ImagePackage.name == name, ImagePackage.normalized_src_pkg == name)).all()
+
+    @classmethod
+    def with_name_and_types_like(cls, name, types, like_match, db):
+        """
+        Named package matching one of list of types with specific like-based match
+
+        :param name:
+        :param types:
+        :param like_match:
+        :param db:
+        :return:
+        """
+
+        return db.query(cls).filter(cls.pkg_type.in_(types), cls.pkg_type.like(like_match), or_(ImagePackage.name == name, cls.normalized_src_pkg == name)).all()
+
+
+class ImagePackageManifestEntry(PolicyEngineBase):
     """
     An entry from the package manifest (e.g. rpm, deb, apk) for verifying package contents in a generic way.
 
@@ -1481,8 +1555,8 @@ class ImagePackageManifestEntry(Base):
     )
 
 
-NPM_SEQ = Sequence('image_npms_seq_id_seq', metadata=Base.metadata)
-class ImageNpm(Base):
+NPM_SEQ = Sequence('image_npms_seq_id_seq', metadata=PolicyEngineBase.metadata)
+class ImageNpm(PolicyEngineBase):
     """
     NOTE: This is a deprecated class used for legacy support and upgrade. Image NPMs are now stored in the ImagePackage type
     """
@@ -1513,8 +1587,8 @@ class ImageNpm(Base):
         return '<{} user_id={}, img_id={}, name={}>'.format(self.__class__, self.image_user_id, self.image_id, self.name)
 
 
-GEM_SEQ = Sequence('image_gems_seq_id_seq', metadata=Base.metadata)
-class ImageGem(Base):
+GEM_SEQ = Sequence('image_gems_seq_id_seq', metadata=PolicyEngineBase.metadata)
+class ImageGem(PolicyEngineBase):
     """
     NOTE: This is a deprecated class used for legacy support. Gems are now loaded as types of packages for the ImagePackage class
     """
@@ -1547,7 +1621,7 @@ class ImageGem(Base):
         return '<{} user_id={}, img_id={}, name={}>'.format(self.__class__, self.image_user_id, self.image_id, self.name)
 
 
-class ImageCpe(Base):
+class ImageCpe(PolicyEngineBase):
     __tablename__ = 'image_cpes'
 
     image_user_id = Column(String(user_id_length), primary_key=True)
@@ -1613,7 +1687,7 @@ class ImageCpe(Base):
             ret = None
         return(ret)
 
-class FilesystemAnalysis(Base):
+class FilesystemAnalysis(PolicyEngineBase):
     """
     A unified and compressed record of the filesystem-level entries in an image. An alternative to the FilesystemItem approach,
     this allows much faster index operations due to a smaller index, but no queries into the content of the filesystems themselves.
@@ -1679,7 +1753,7 @@ class FilesystemAnalysis(Base):
         self.compressed_content_hash = hashlib.sha256(self.compressed_file_json).hexdigest()
 
 
-class AnalysisArtifact(Base):
+class AnalysisArtifact(PolicyEngineBase):
     """
     A generic container for an analysis result that doesn't require significant structure.
     Basically wraps a key-value output from a specific analyzer.
@@ -1709,7 +1783,7 @@ class AnalysisArtifact(Base):
     )
 
 
-class Image(Base):
+class Image(PolicyEngineBase):
     """
     The core image analysis record. Contains metadata about the image itself.
 
@@ -1817,8 +1891,24 @@ class Image(Base):
     def __repr__(self):
         return '<Image user_id={}, id={}, distro={}, distro_version={}, created_at={}, last_modified={}>'.format(self.user_id, self.id, self.distro_name, self.distro_version, self.created_at, self.last_modified)
 
+    @classmethod
+    def get(cls, account, image_id, db):
+        return db.query(Image).get((image_id, account))
 
-class ImagePackageVulnerability(Base):
+    @classmethod
+    def all_for_account(cls, account, db):
+        return db.query(Image).filter_by(user_id=account).all()
+
+    @classmethod
+    def users_with_images(cls, db):
+        return db.query(Image.user_id).group_by(Image.user_id).all()
+
+    @classmethod
+    def created_between(cls, from_time, to_time, db):
+        return db.query(Image).filter(Image.created_at >= from_time, Image.created_at <= to_time).all()
+
+
+class ImagePackageVulnerability(PolicyEngineBase):
     """
     Provides a mapping between ImagePackage and Vulnerabilities
     """
@@ -1846,7 +1936,6 @@ class ImagePackageVulnerability(Base):
         ForeignKeyConstraint(columns=[vulnerability_id, vulnerability_namespace_name], refcolumns=[Vulnerability.id, Vulnerability.namespace_name]),
         {}
     )
-
 
     def fixed_artifact(self):
         """
@@ -1921,6 +2010,18 @@ class ImagePackageVulnerability(Base):
 
     def __hash__(self):
         return hash((self.pkg_user_id, self.pkg_image_id, self.pkg_name, self.pkg_version, self.pkg_type, self.pkg_arch, self.vulnerability_id, self.pkg_path))
+
+    @classmethod
+    def delete_all_in_group(cls, group_name, db):
+        """
+        Returns the count of the deleted rows
+
+        :param group_name:
+        :param db:
+        :return:
+        """
+
+        return db.query(cls).filter(cls.vulnerability_namespace_name == group_name).delete()
 
 
 class IDistroMapper(object):
@@ -2028,7 +2129,7 @@ class VersionPreservingDistroMapper(IDistroMapper):
         return [distro_version]
 
 
-class DistroMapping(Base):
+class DistroMapping(PolicyEngineBase):
     """
     A mapping entry between a distro with known cve feed and other similar distros.
     Used to explicitly map similar distros to a base feed for cve matches.
@@ -2071,6 +2172,11 @@ class DistroMapping(Base):
 
     def __str__(self):
         return '<DistroMapping>from={} to={}, flavor={}'.format(self.from_distro, self.to_distro, self.flavor)
+
+    @classmethod
+    def get(cls, from_distro, db):
+        return db.query(cls).get(from_distro)
+
 
 class DistroNamespace(object):
     """
@@ -2126,7 +2232,7 @@ class DistroNamespace(object):
         return [x.distro for x in DistroMapping.distros_mapped_to(self.name, self.version)]
 
 
-class CachedPolicyEvaluation(Base):
+class CachedPolicyEvaluation(PolicyEngineBase):
     __tablename__ = 'policy_engine_evaluation_cache'
 
     user_id = Column(String, primary_key=True)

@@ -29,7 +29,7 @@ def list_distro_mappings():
 
     db = get_session()
     try:
-        mappings = [DistroMapping(from_distro=x.from_distro, to_distro=x.to_distro, created_at=x.created_at, flavor=x.flavor).to_dict() for x in db.query(DbDistroMapping).all()]
+        mappings = [DistroMapping(from_distro=x.from_distro, to_distro=x.to_distro, created_at=x.created_at, flavor=x.flavor).to_dict() for x in DbDistroMapping.all(db)]
         return mappings
     except Exception as e:
         log.exception('Error processing list_distro_mappings. Could not read db entities')
@@ -75,7 +75,7 @@ def delete_distro_mapping(from_distro):
     """
     db = get_session()
     try:
-        rec = db.query(DbDistroMapping).get(from_distro)
+        rec = DbDistroMapping.get(from_distro, db)
         if rec:
             db.delete(rec)
         else:

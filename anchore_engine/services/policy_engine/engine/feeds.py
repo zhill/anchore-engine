@@ -721,7 +721,7 @@ class AnchoreServiceFeed(DataFeed):
     def __init__(self, metadata=None, src=None):
         if not metadata:
             db = get_session()
-            metadata = db.query(FeedMetadata).get(self.__feed_name__)
+            metadata = FeedMetadata.get(self.__feed_name__, db)
 
         super(AnchoreServiceFeed, self).__init__(metadata=metadata, src=src)
 
@@ -987,7 +987,7 @@ class AnchoreServiceFeed(DataFeed):
         if flush_helper_fn:
             flush_helper_fn(db=db, feed_name=group_obj.feed_name, group_name=group_obj.name)
 
-        db.query(GenericFeedDataRecord).delete()
+        GenericFeedDataRecord.delete_all(db)
 
     def bulk_sync(self, group=None):
         """
@@ -1146,19 +1146,16 @@ class VulnerabilityFeed(AnchoreServiceFeed):
 
         db = get_session()
         try:
-            return db.query(Vulnerability).get((key, group))
+            return Vulnerability.get(key, group, db)
         except Exception as e:
-            log.exception('Could not retrieve vulnerability by key:')
+            log.exception('Could not retrieve vulnerability by key: {}'.format((key, group)))
 
     def query_data_since(self, since_datetime, group=None):
         db = get_session()
         try:
-            if not group:
-                return db.query(Vulnerability).filter(Vulnerability.updated_at >= since_datetime).all()
-            else:
-                return db.query(Vulnerability).filter(Vulnerability.updated_at >= since_datetime, Vulnerability.namespace_name == group).all()
+            return Vulnerability.updated_since(since_datetime, group, db)
         except Exception as e:
-            log.exception('Could not retrieve vulnerability by key:')
+            log.exception('Could not retrieve vulnerability updated since {} for group {}'.format(since_datetime, group))
 
     def _dedup_data_key(self, item):
         return item.id

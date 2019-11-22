@@ -105,12 +105,12 @@ def find_vulnerable_image_packages(vulnerability_obj):
                 package_candidates = []
 
                 # Find packages of related distro names with compatible versions, this does not have to be precise, just an initial filter.
-                pkgs = db.query(ImagePackage).filter(ImagePackage.distro_name.in_(related_names), ImagePackage.distro_version.like(dist.version + '%'), or_(ImagePackage.name == fix_rec.name, ImagePackage.normalized_src_pkg == fix_rec.name)).all()
+                pkgs = ImagePackage.with_name_and_distros_like(fix_rec.name, related_names, dist.version, db)
                 package_candidates += pkgs
 
                 # add non distro candidates
                 if likematch:
-                    pkgs = db.query(ImagePackage).filter(ImagePackage.pkg_type.in_(nonos_package_types), ImagePackage.pkg_type.like(likematch), or_(ImagePackage.name == fix_rec.name, ImagePackage.normalized_src_pkg == fix_rec.name)).all()
+                    pkgs = ImagePackage.with_name_and_types_like(fix_rec.name, nonos_package_types, likematch)
                     package_candidates += pkgs
 
                 for candidate in package_candidates:
