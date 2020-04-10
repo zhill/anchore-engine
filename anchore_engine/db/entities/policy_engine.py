@@ -434,6 +434,8 @@ class FixedArtifact(Base):
                 log.spew('apkg Compared: {} < {}: True'.format(package_obj.fullversion, fix_obj.epochless_version))
                 return True
 
+        # TODO: windows -- add kb type and 'base' type here with comparison function
+
         if package_obj.pkg_type in ['java', 'maven', 'npm', 'gem', 'python', 'js']:
             if package_obj.pkg_type in ['java', 'maven']:
                 pomprops = package_obj.get_pom_properties()
