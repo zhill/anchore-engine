@@ -28,7 +28,7 @@ from anchore_engine.subsys import logger
 
 class ThreadLocalFeedGroupNameCache:
     """
-    Simple cache used during feed syncs to caching name lookups. Here for simpler import paths, used by both feeds.VulnerabilityFeed and vulerabilities.process_updated_vulnerability functions
+    Simple cache used during feed syncs to caching name lookups. Here for simpler import paths, used by both feeds.VulnerabilityFeed and vulnerabilities.process_updated_vulnerability functions
     """
     feed_list_cache = threading.local()
 
