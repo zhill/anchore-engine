@@ -12,7 +12,7 @@ from tests.integration.services.policy_engine.engine.policy.gates import cls_ful
 logger.enable_test_logging()
 
 @pytest.mark.usefixtures('cls_fully_loaded_test_env')
-class AnchoreSecGateTest(GateUnitTest):
+class VulnerabilitiesGateTest(GateUnitTest):
     """
     Test against the debian 8 based "node" image in the test env.
     It contains the package:
