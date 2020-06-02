@@ -11,13 +11,13 @@ work the way they do and often the behavior is a result of the range of cleanlin
 
 """
 import time
-
+import datetime
 from sqlalchemy import or_
+import threading
 
 from anchore_engine.db import DistroNamespace, get_thread_scoped_session
-from anchore_engine.db import Vulnerability, ImagePackage, ImagePackageVulnerability
-from anchore_engine.common import nonos_package_types
-import threading
+from anchore_engine.db import Vulnerability, ImagePackage, ImagePackageVulnerability, Image, VulnerableArtifact, FixedArtifact, ImageCpe, CpeV2Vulnerability, VulnDBCpe, VulnDBMetadata, NvdV2Metadata
+from anchore_engine.common import nonos_package_types, os_package_types
 
 from anchore_engine.subsys import logger
 
@@ -384,3 +384,248 @@ def rescan_namespace(db, namespace_name: str):
         logger.info('Updated {} images with a match for {}'.format(len(updated_images) if updated_images else 0, vuln.id))
         i += 1
         logger.info('Completed {} of {} updates for {}'.format(i, total_vulns, namespace_name))
+
+
+# Classes and interfaces for normalized vulnerability reports for an image
+class VulnerablePackage:
+    """
+    Simplified package object for normalization of matches
+    """
+    def __init__(self):
+        self.name = None
+        self.version = None
+        self.type = None
+        self.path = None
+        self.source_package_name = None
+        self.full_version = None
+        self.namespace = None
+        self.vendor = None
+
+        # Match alternatives for fuzzy matches. In most cases should be the same as the name and version
+        self.matched_name = None
+        self.matched_version = None
+
+    def is_distro_package(self):
+        return self.type in os_package_types
+
+
+class ReportVulnerability:
+    def __init__(self):
+        self.id = None
+        self.severity = None
+        self.namespace = None
+        self.package_name = None
+        self.fix_version = None
+        self.fixed_at_date = None
+        self.created_at = None
+        self.cvss = None
+        self.will_not_fix = None
+
+
+class VulnerabilityMatch:
+    """
+    Generic pairing of a package and a vulnerability, for normalizing multiple match types (cpe and os packages)
+    """
+
+    def __init__(self, package: VulnerablePackage, vuln: ReportVulnerability):
+        self.package = package
+        self.vulnerability = vuln
+
+    def has_fix(self):
+        return self.vulnerability.fix_version is not None
+
+
+class CVSSMetadata:
+    """
+    A simplified CVSS score representation
+    """
+    def __init__(self, base: float, exploit: float, impact: float, version: str):
+        """
+
+        :param base:
+        :param exploit:
+        :param impact:
+        :param vector:
+        :param version: str version number (e.g. "2.3", "3.1")
+        """
+        self.base = base
+        self.exploit = exploit
+        self.impact = impact
+        self.version = version
+
+
+def normalize_nvd_cvssv3(vuln: NvdV2Metadata) -> CVSSMetadata:
+    return CVSSMetadata(vuln.get_max_base_score_nvd(3), vuln.get_max_exploitability_score_nvd(3), vuln.get_max_impact_score_nvd(3), '3')
+
+
+def normalize_vendor_cvssv3(vuln: Vulnerability) -> CVSSMetadata:
+    vuln_cvss_base_score = -1.0
+    vuln_cvss_exploitability_score = -1.0
+    vuln_cvss_impact_score = -1.0
+
+    for nvd_record in vuln.get_nvd_vulnerabilities():
+        cvss_score = nvd_record.get_max_cvss_score_nvd()
+
+        if cvss_score.get('base_score', -1.0) > vuln_cvss_base_score:
+            vuln_cvss_base_score = cvss_score.get('base_score', -1.0)
+        if cvss_score.get('exploitability_score', -1.0) > vuln_cvss_exploitability_score:
+            vuln_cvss_exploitability_score = cvss_score.get('exploitability_score', -1.0)
+        if cvss_score.get('impact_score', -1.0) > vuln_cvss_impact_score:
+            vuln_cvss_impact_score = cvss_score.get('impact_score', -1.0)
+
+    return CVSSMetadata(vuln_cvss_base_score, vuln_cvss_exploitability_score, vuln_cvss_impact_score, '3')
+
+
+def map_cpe2_vuln(dest: ReportVulnerability, src: CpeV2Vulnerability):
+    """
+    Update the fields of dest with values from src
+    :param dest:
+    :param src:
+    :return: None, updates dest in-place
+    """
+    vuln = src.parent
+    dest.id = src.vulnerability_id
+    dest.severity = vuln.severity
+    dest.created_at = vuln.created_at
+    dest.metadata = vuln.metadata
+    dest.nvd_metadata = vuln.metadata
+    dest.cvss = normalize_nvd_cvssv3(vuln)
+
+    # These aren't known for NVD vulns since it only enumerates vulnerable items, not fixes or their availability
+    dest.fix_version = None
+    dest.fixed_at_date = None
+
+
+def map_vulndb_vuln(dest: ReportVulnerability, src: VulnDBCpe):
+    """
+    Upate the fields in dest with values from src
+    :param dest:
+    :param src:
+    :return: None, updates dest in-place
+    """
+
+    vuln = src.parent
+    dest.id = src.vulnerability_id
+    dest.severity = vuln.severity
+    dest.created_at = vuln.created_at
+    dest.metadata = vuln.metadata
+    dest.nvd_metadata = vuln.metadata
+    dest.cvss = vuln.get_cvss_data_nvd()
+
+    # These aren't known for NVD vulns since it only enumerates vulnerable items, not fixes or their availability
+    dest.fix_version = vuln.solution
+    dest.fixed_at_date = None
+
+
+def normalized_match_from_cpes(pkg_cpe: ImageCpe, cpe_vuln):
+    """
+    Match from a CPE-type match
+    :return:
+    """
+
+    pkg = VulnerablePackage()
+    pkg.matched_name = pkg_cpe.name
+    pkg.matched_version = pkg_cpe.version
+    pkg.vendor = pkg_cpe.vendor
+    pkg.name = pkg_cpe.name
+    pkg.version = pkg_cpe.version
+    pkg.type = pkg_cpe.pkg_type.lower()
+    pkg.full_version = pkg_cpe.version
+    pkg.path = pkg_cpe.pkg_path
+
+    vuln = ReportVulnerability()
+    if type(cpe_vuln) == CpeV2Vulnerability:
+        map_cpe2_vuln(vuln, cpe_vuln)
+
+    return VulnerabilityMatch(pkg, vuln)
+
+
+def normalized_match_from_os(image_pkg_vuln: ImagePackageVulnerability):
+    """
+    Match constructed from an image package match record. Requires a valid db session
+
+    :param image_pkg_vuln:
+    :return:
+    """
+
+    image_pkg = image_pkg_vuln.package
+    img_vuln = image_pkg_vuln.vulnerability
+
+    # Need to make these detached from the db session
+    pkg = VulnerablePackage()
+    pkg.name = image_pkg.name
+    pkg.version = image_pkg.version
+    pkg.type = image_pkg.pkg_type.lower()
+    pkg.path = image_pkg.pkg_path
+    pkg.namespace = image_pkg.distro_namespace
+    pkg.full_version = image_pkg.fullversion
+    pkg.source_package_name = image_pkg.normalized_src_pkg
+    pkg.vendor = image_pkg.distro_name
+
+    pkg.matched_version = pkg.full_version
+    fixed_artifact = image_pkg_vuln.fixed_artifact()
+
+    if fixed_artifact:
+        pkg.matched_name = fixed_artifact.name
+
+    vuln = ReportVulnerability()
+    vuln.id = img_vuln.id
+    vuln.namespace = img_vuln.namespace_name
+    vuln.severity = img_vuln.severity
+    vuln.created_at = img_vuln.created_at # Date the vuln record was created in this db
+    vuln.cvss = img_vuln.cvss2_score
+
+    vuln.nvd_cvss = img_vuln.get_nvd_vulnerabilities()
+    vuln.nvd_metadata = img_vuln.metadata_json
+
+    return VulnerabilityMatch(pkg, vuln)
+
+
+class ImageVulnerabilityReport:
+    """
+    A single vulnerability report created at a specific time (not auto updated) for an image
+    """
+
+    def __init__(self, image: Image, vulnerabilities: list):
+        self.created_at = datetime.datetime.utcnow()
+        self.vulnerabilities = vulnerabilities
+        self.account_id = image.user_id
+        self.image_id = image.id
+        self.image_digest = image.digest
+
+
+def get_vulnerability_report(image: Image) -> ImageVulnerabilityReport:
+    """
+    Return a full vulnerability report for the given image, decoupled from any db session.
+
+    Does not perform any deduplication
+
+    :param image:
+    :return: ImageVulnerabilityReport object
+    """
+
+    vulnerabilities = [normalized_match_from_os(pkg_vuln) for pkg_vuln in image.vulnerabilities()]
+
+    all_cpe_matches = image.cpe_vulnerabilities(None, None)
+
+    # This is lifted straight from the vulnerability gate prepare_context...
+    # Removes duplicate matches for the same vuln ID and same package path
+    dedup_hash = {}
+    severity_matches = {}
+    for image_cpe, vulnerability_cpe in all_cpe_matches:
+        sev = vulnerability_cpe.parent.severity
+        if sev not in severity_matches:
+            severity_matches[sev] = []
+
+        if image_cpe.pkg_path:
+            if image_cpe.pkg_path not in dedup_hash:
+                dedup_hash[image_cpe.pkg_path] = []
+
+            if vulnerability_cpe.vulnerability_id not in dedup_hash[image_cpe.pkg_path]:
+                dedup_hash[image_cpe.pkg_path].append(vulnerability_cpe.vulnerability_id)
+                severity_matches[sev].append((image_cpe, vulnerability_cpe))
+        else:
+            severity_matches[sev].append((image_cpe, vulnerability_cpe))
+
+    vulnerabilities.extend([normalized_match_from_cpes(cpe, vuln) for cpe, vuln in severity_matches.values()])
+    return ImageVulnerabilityReport(image, vulnerabilities)

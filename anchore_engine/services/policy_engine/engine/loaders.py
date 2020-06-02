@@ -1042,7 +1042,7 @@ class ImageLoader(object):
 
         # TODO: should add link from the predicted CPE to the actual package record. Needed to preserve the original detected values in cases where
         # the match requires changes for the CPE to match the vuln data (the fuzzy bit of the match)
-        
+
         # do java first (from analysis)
         java_json_raw = analysis_json.get('package_list', {}).get('pkgs.java', {}).get('base')
         if java_json_raw:
