@@ -17,7 +17,7 @@ class FeedAPIGroupRecord(JsonSerializable):
         description = fields.Str()
 
         @post_load
-        def make(self, data):
+        def make(self, data, **kwargs):
             return FeedAPIGroupRecord(**data)
 
     __schema__ = FeedAPIGroupV1Schema()
@@ -35,7 +35,7 @@ class FeedAPIRecord(JsonSerializable):
         description = fields.Str()
 
         @post_load
-        def make(self, data):
+        def make(self, data, **kwargs):
             return FeedAPIRecord(**data)
 
     __schema__ = FeedAPIV1Schema()
@@ -51,7 +51,7 @@ class GroupDownloadOperationParams(JsonSerializable):
         since = fields.DateTime(allow_none=True)
 
         @post_load
-        def make(self, data):
+        def make(self, data, **kwargs):
             return GroupDownloadOperationParams(**data)
 
     __schema__ = GroupDownloadOperationParamsV1Schema()
@@ -67,7 +67,7 @@ class GroupDownloadOperationConfiguration(JsonSerializable):
         parameters = fields.Nested(GroupDownloadOperationParams.GroupDownloadOperationParamsV1Schema)
 
         @post_load
-        def make(self, data):
+        def make(self, data, **kwargs):
             return GroupDownloadOperationConfiguration(**data)
     __schema__ = GroupDownloadOperationV1Schema()
 
@@ -88,7 +88,7 @@ class DownloadOperationConfiguration(JsonSerializable):
         uuid = fields.UUID()
 
         @post_load
-        def make(self, data):
+        def make(self, data, **kwargs):
             return DownloadOperationConfiguration(**data)
 
     __schema__ = DownloadOperationV1Schema()
@@ -126,7 +126,7 @@ class GroupDownloadResult(JsonSerializable):
         total_records = fields.Int()
 
         @post_load
-        def make(self, data):
+        def make(self, data, **kwargs):
             return GroupDownloadResult(**data)
 
     __schema__ = GroupDownloadResultV1Schema()
@@ -148,7 +148,7 @@ class DownloadOperationResult(JsonSerializable):
         results = fields.List(fields.Nested(GroupDownloadResult.GroupDownloadResultV1Schema))
 
         @post_load
-        def make(self, data):
+        def make(self, data, **kwargs):
             return DownloadOperationResult(**data)
 
     __schema__ = DownloadOperationResultV1Schema()
@@ -175,7 +175,7 @@ class LocalFeedDataRepoMetadata(JsonSerializable):
         data_write_dir = fields.Str()
 
         @post_load
-        def make(self, data):
+        def make(self, data, **kwargs):
             return LocalFeedDataRepoMetadata(**data)
 
     __schema__ = LocalFeedDataRepoMetadataV1Schema()
