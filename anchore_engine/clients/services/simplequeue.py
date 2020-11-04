@@ -2,6 +2,8 @@ import json
 import threading
 import time
 
+from anchore_engine.apis.serialization import JsonSerializable, Schema, post_load
+from marshmallow import fields
 from anchore_engine.clients.services import http
 from anchore_engine.subsys import logger
 from anchore_engine.utils import get_threadbased_id
@@ -9,11 +11,13 @@ from anchore_engine.clients.services.internal import InternalServiceClient
 from anchore_engine.clients.services import internal_client_for
 import retrying
 
+
 class LeaseUnavailableError(Exception):
     """
     A lease is held by another thread and was not freed within the timeout
     """
     pass
+
 
 class LeaseAcquisitionFailedError(Exception):
     """
@@ -22,9 +26,12 @@ class LeaseAcquisitionFailedError(Exception):
     pass
 
 
+
+
 class SimpleQueueClient(InternalServiceClient):
     __service__ = 'simplequeue'
 
+    # Core Queueing API
     def get_queues(self):
         return self.call_api(http.anchy_get, '/queues')
 
@@ -54,6 +61,7 @@ class SimpleQueueClient(InternalServiceClient):
     def update_message_visibility_timeout(self, name, receipt_handle, visibility_timeout):
         return self.round_robin_call_api(http.anchy_put, 'queues/{queue}', path_params={'queue': name}, query_params={'receipt_handle': receipt_handle, 'visibility_timeout': visibility_timeout})
 
+    # Lease API
     def create_lease(self, lease_id):
         return self.round_robin_call_api(http.anchy_post, 'leases', query_params={'lease_id': lease_id})
 
@@ -93,11 +101,7 @@ def run_target_with_queue_ttl(account, queue, visibility_timeout, target, max_wa
     :return:
     """
 
-    #client = SimpleQueueClient(as_account=user_auth[0], user=user_auth[0], password=user_auth[1])
     client = internal_client_for(SimpleQueueClient, account)
-
-    ex = None
-    qobj = None
 
     @retrying.retry(stop_max_attempt_number=retries, wait_incrementing_start=0, wait_incrementing_increment=backoff_time*1000)
     def get_msg():
@@ -126,7 +130,7 @@ def run_target_with_queue_ttl(account, queue, visibility_timeout, target, max_wa
 
             if autorefresh:
                 # Run the task thread and monitor it, refreshing the task lease as needed
-                while task.isAlive():
+                while task.is_alive():
                     # If we're halfway to the timeout, refresh to have a safe buffer
                     if time.time() - t > (visibility_timeout / 2):
                         # refresh the lease
@@ -137,7 +141,7 @@ def run_target_with_queue_ttl(account, queue, visibility_timeout, target, max_wa
                                     t = time.time()
                                     logger.debug('Msg with handle {} refreshed with new expiration: {}'.format(receipt_handle, resp))
                                     break
-                            except Exception as e:
+                            except Exception:
                                 logger.exception('Error updating visibility timeout {}'.format(receipt_handle))
                         else:
                             logger.warn('Visibility refresh failed to succeed after retries. Msg {} may be replayed due to timeout'.format(msg_id))

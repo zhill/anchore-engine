@@ -848,7 +848,7 @@ def run_anchore_analyzers(staging_dirs, imageDigest, imageId, localconfig):
     return dict(analyzer_report)
 
 
-def generate_image_export(staging_dirs, imageDigest, imageId, analyzer_report, imageSize, fulltag, docker_history, dockerfile_mode, dockerfile_contents, layers, familytree, imageArch, rdigest, analyzer_manifest):
+def generate_image_export(imageId, analyzer_report, imageSize, fulltag, docker_history, dockerfile_mode, dockerfile_contents, layers, familytree, imageArch, rdigest, analyzer_manifest):
     image_report = []
     image_report.append(
         {
@@ -989,7 +989,7 @@ def analyze_image(userId, manifest, image_record, tmprootdir, localconfig, regis
         logger.debug("timing: total analyzer time: {} - {}".format(pullstring, time.time() - timer))
 
         try:
-            image_report = generate_image_export(staging_dirs, imageDigest, imageId, analyzer_report, imageSize, fulltag, docker_history, dockerfile_mode, dockerfile_contents, layers, familytree, imageArch, pullstring, analyzer_manifest)
+            image_report = generate_image_export(imageId, analyzer_report, imageSize, fulltag, docker_history, dockerfile_mode, dockerfile_contents, layers, familytree, imageArch, pullstring, analyzer_manifest)
         except Exception as err:
             raise AnalysisReportGenerationError(cause=err, pull_string=pullstring, tag=fulltag)
 
