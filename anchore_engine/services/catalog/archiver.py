@@ -10,7 +10,7 @@ import io
 import time
 import uuid
 
-from anchore_engine.apis.serialization import JitSchema, JsonMappedMixin
+from anchore_engine.apis.serialization import Schema, JsonSerializable, fields, post_load
 from anchore_engine.utils import datetime_to_rfc3339, ensure_str, ensure_bytes
 from anchore_engine.clients.services.policy_engine import PolicyEngineClient
 from anchore_engine.clients.services import internal_client_for
@@ -23,9 +23,6 @@ from anchore_engine.configuration import localconfig
 from anchore_engine.services.catalog.catalog_impl import image_imageDigest
 from anchore_engine.subsys.events import ImageArchiveDeleted, ImageRestored, ImageArchived, ImageArchiveDeleteFailed, ImageArchivingFailed, ImageRestoreFailed
 
-
-# Json serialization stuff...
-from marshmallow import fields, post_load
 
 DRY_RUN_ENV_VAR = 'ANCHORE_ANALYSIS_ARCHIVE_DRYRUN_ENABLED'
 DRY_RUN_MODE = (os.getenv(DRY_RUN_ENV_VAR, 'false').lower() == 'true')
@@ -93,8 +90,8 @@ class ImageConflict(Exception):
         }))
 
 
-class ObjectStoreLocation(JsonMappedMixin):
-    class ObjectStoreLocationV1Schema(JitSchema):
+class ObjectStoreLocation(JsonSerializable):
+    class ObjectStoreLocationV1Schema(Schema):
         bucket = fields.Str()
         key = fields.Str()
 
@@ -109,8 +106,8 @@ class ObjectStoreLocation(JsonMappedMixin):
         self.key = key
 
 
-class TarballLocation(JsonMappedMixin):
-    class TarballLocationV1Schema(JitSchema):
+class TarballLocation(JsonSerializable):
+    class TarballLocationV1Schema(Schema):
         tarfile_path = fields.Str()
 
         @post_load
@@ -123,8 +120,8 @@ class TarballLocation(JsonMappedMixin):
         self.tarfile_path = tarfile_path
 
 
-class Artifact(JsonMappedMixin):
-    class ArtifactV1Schema(JitSchema):
+class Artifact(JsonSerializable):
+    class ArtifactV1Schema(Schema):
 
         name = fields.Str()
         metadata = fields.Dict(allow_none=True)
@@ -144,8 +141,8 @@ class Artifact(JsonMappedMixin):
         self.dest = dest
 
 
-class ArchiveManifest(JsonMappedMixin):
-    class ArchiveManifestV1Schema(JitSchema):
+class ArchiveManifest(JsonSerializable):
+    class ArchiveManifestV1Schema(Schema):
         image_digest = fields.Str()
         account = fields.Str()
         archived_at = fields.DateTime()

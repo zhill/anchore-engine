@@ -6,12 +6,12 @@ JSON schemas for the feed Download and sync processes
 import datetime
 import uuid
 
-from anchore_engine.apis.serialization import JsonMappedMixin, JitSchema, fields, post_load
+from anchore_engine.apis.serialization import JsonSerializable, Schema, fields, post_load
 from anchore_engine.db import FeedGroupMetadata
 
 
-class FeedAPIGroupRecord(JsonMappedMixin):
-    class FeedAPIGroupV1Schema(JitSchema):
+class FeedAPIGroupRecord(JsonSerializable):
+    class FeedAPIGroupV1Schema(Schema):
         name = fields.Str()
         access_tier = fields.Int()
         description = fields.Str()
@@ -28,8 +28,8 @@ class FeedAPIGroupRecord(JsonMappedMixin):
         self.description = description
 
 
-class FeedAPIRecord(JsonMappedMixin):
-    class FeedAPIV1Schema(JitSchema):
+class FeedAPIRecord(JsonSerializable):
+    class FeedAPIV1Schema(Schema):
         name = fields.Str()
         access_tier = fields.Int()
         description = fields.Str()
@@ -46,8 +46,8 @@ class FeedAPIRecord(JsonMappedMixin):
         self.description = description
 
 
-class GroupDownloadOperationParams(JsonMappedMixin):
-    class GroupDownloadOperationParamsV1Schema(JitSchema):
+class GroupDownloadOperationParams(JsonSerializable):
+    class GroupDownloadOperationParamsV1Schema(Schema):
         since = fields.DateTime(allow_none=True)
 
         @post_load
@@ -60,8 +60,8 @@ class GroupDownloadOperationParams(JsonMappedMixin):
         self.since = since
 
 
-class GroupDownloadOperationConfiguration(JsonMappedMixin):
-    class GroupDownloadOperationV1Schema(JitSchema):
+class GroupDownloadOperationConfiguration(JsonSerializable):
+    class GroupDownloadOperationV1Schema(Schema):
         feed = fields.Str()
         group = fields.Str()
         parameters = fields.Nested(GroupDownloadOperationParams.GroupDownloadOperationParamsV1Schema)
@@ -77,12 +77,12 @@ class GroupDownloadOperationConfiguration(JsonMappedMixin):
         self.parameters = parameters
 
 
-class DownloadOperationConfiguration(JsonMappedMixin):
+class DownloadOperationConfiguration(JsonSerializable):
     """
     A configuration for a Download operation
     """
 
-    class DownloadOperationV1Schema(JitSchema):
+    class DownloadOperationV1Schema(Schema):
         groups = fields.List(fields.Nested(GroupDownloadOperationConfiguration.GroupDownloadOperationV1Schema))
         source_uri = fields.Str()
         uuid = fields.UUID()
@@ -116,8 +116,8 @@ class DownloadOperationConfiguration(JsonMappedMixin):
         return conf
 
 
-class GroupDownloadResult(JsonMappedMixin):
-    class GroupDownloadResultV1Schema(JitSchema):
+class GroupDownloadResult(JsonSerializable):
+    class GroupDownloadResultV1Schema(Schema):
         started = fields.DateTime()
         ended = fields.DateTime()
         feed = fields.Str()
@@ -140,8 +140,8 @@ class GroupDownloadResult(JsonMappedMixin):
         self.total_records = total_records
 
 
-class DownloadOperationResult(JsonMappedMixin):
-    class DownloadOperationResultV1Schema(JitSchema):
+class DownloadOperationResult(JsonSerializable):
+    class DownloadOperationResultV1Schema(Schema):
         started = fields.DateTime(allow_none=True)
         ended = fields.DateTime(allow_none=True)
         status = fields.Str(allow_none=True)
@@ -168,8 +168,8 @@ class DownloadOperationResult(JsonMappedMixin):
         self.results = results
 
 
-class LocalFeedDataRepoMetadata(JsonMappedMixin):
-    class LocalFeedDataRepoMetadataV1Schema(JitSchema):
+class LocalFeedDataRepoMetadata(JsonSerializable):
+    class LocalFeedDataRepoMetadataV1Schema(Schema):
         download_configuration = fields.Nested(DownloadOperationConfiguration.DownloadOperationV1Schema, allow_none=True)
         download_result = fields.Nested(DownloadOperationResult.DownloadOperationResultV1Schema, allow_none=True)
         data_write_dir = fields.Str()
