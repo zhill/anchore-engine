@@ -2,19 +2,20 @@ import datetime
 import time
 
 from anchore_engine.clients.services.catalog import CatalogClient
-from anchore_engine.db import get_thread_scoped_session as get_session, FeedMetadata, GenericFeedDataRecord, FeedGroupMetadata, ImagePackageVulnerability, Vulnerability, FixedArtifact, GemMetadata, NpmMetadata, NvdV2Metadata, CpeV2Vulnerability, \
+from anchore_engine.db import get_thread_scoped_session as get_session, FeedMetadata, GenericFeedDataRecord, Vulnerability, FixedArtifact, GemMetadata, NpmMetadata, NvdV2Metadata, CpeV2Vulnerability, \
     VulnDBMetadata, VulnDBCpe, VulnerableArtifact, get_thread_scoped_session, NvdMetadata, CpeVulnerability
 
-from anchore_engine.services.policy_engine.engine.feeds.schemas import DownloadOperationConfiguration, GroupDownloadResult, GroupDownloadOperationParams
+from anchore_engine.common.schemas import GroupDownloadResult
 from anchore_engine.services.policy_engine.engine.feeds.download import LocalFeedDataRepo
 from anchore_engine.services.policy_engine.engine.feeds.mappers import (
         GenericFeedDataMapper, SingleTypeMapperFactory,
         VulnerabilityFeedDataMapper, GemPackageDataMapper, NpmPackageDataMapper,
         NvdV2FeedDataMapper, VulnDBFeedDataMapper, GithubFeedDataMapper
 )
-from anchore_engine.services.policy_engine.engine.feeds import mappers
+
+
 from anchore_engine.services.policy_engine.engine.vulnerabilities import process_updated_vulnerability, flush_vulnerability_matches, ThreadLocalFeedGroupNameCache
-from anchore_engine.subsys.events import FeedGroupSyncStarted, FeedGroupSyncCompleted, FeedGroupSyncFailed, EventBase
+from anchore_engine.subsys.events import EventBase
 from anchore_engine.services.policy_engine.engine.feeds.db import lookup_feed, get_feed_json
 from anchore_engine.subsys import logger
 

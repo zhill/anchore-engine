@@ -7,7 +7,7 @@ import typing
 
 from anchore_engine.utils import mapped_parser_item_iterator
 from anchore_engine.services.policy_engine.engine.feeds import IFeedSource
-from anchore_engine.services.policy_engine.engine.feeds.schemas import LocalFeedDataRepoMetadata, DownloadOperationConfiguration, DownloadOperationResult, GroupDownloadOperationConfiguration, FeedAPIGroupRecord, FeedAPIRecord, GroupDownloadResult
+from anchore_engine.common.schemas import FeedAPIGroupRecord, FeedAPIRecord, GroupDownloadOperationConfiguration, DownloadOperationConfiguration, GroupDownloadResult, DownloadOperationResult, LocalFeedDataRepoMetadata
 
 from anchore_engine.subsys import logger
 

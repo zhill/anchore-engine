@@ -107,7 +107,7 @@ class ObjectStorageManager(object):
         :param bucket:
         :param archiveId:
         :param data: a json serializable object (string, dict, list, etc)
-        :return: str url for retrieval
+        :return: digest of the content stored as a string
         """
         payload = json.dumps({'document': data})
 
@@ -154,7 +154,7 @@ class ObjectStorageManager(object):
         :param bucket:
         :param archiveid:
         :param data: string data to write
-        :return:
+        :return: digest of the stored content
         """
         if not self.primary_client:
             raise Exception("archive not initialized")
@@ -172,7 +172,7 @@ class ObjectStorageManager(object):
             logger.debug("cannot put data: exception - " + str(err))
             raise err
 
-        return True
+        return digest
 
     def get(self, userId, bucket, archiveid):
         if not self.archive_clients:

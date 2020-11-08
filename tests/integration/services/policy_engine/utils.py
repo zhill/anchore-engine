@@ -9,7 +9,7 @@ import os
 from anchore_engine.services.policy_engine.engine.feeds import IFeedSource, FeedGroupList, FeedList, GroupData
 from anchore_engine.db.entities.policy_engine import FeedMetadata
 from anchore_engine.subsys import logger
-from anchore_engine.services.policy_engine.engine.feeds.schemas import FeedAPIGroupRecord, FeedAPIRecord
+from anchore_engine.common.schemas import FeedAPIGroupRecord, FeedAPIRecord
 from anchore_engine.utils import ensure_bytes
 
 

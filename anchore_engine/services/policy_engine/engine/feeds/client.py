@@ -14,7 +14,7 @@ from anchore_engine.configuration import localconfig
 from anchore_engine.subsys import logger
 from anchore_engine.utils import ensure_str, ensure_bytes, AnchoreException
 from anchore_engine.services.policy_engine.engine.feeds import IFeedSource, FeedGroupList, FeedList, GroupData
-from anchore_engine.services.policy_engine.engine.feeds.schemas import FeedAPIRecord, FeedAPIGroupRecord
+from anchore_engine.common.schemas import FeedAPIGroupRecord, FeedAPIRecord
 
 FEED_DATA_ITEMS_PATH = 'data.item'
 FEED_DATA_NEXT_TOKEN_PATH = 'next_token'
