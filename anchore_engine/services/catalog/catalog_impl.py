@@ -28,8 +28,7 @@ from anchore_engine.apis.exceptions import BadRequest, AnchoreApiError
 import anchore_engine.subsys.events
 from anchore_engine.db import session_scope
 from collections import namedtuple
-import threading
-from anchore_engine import db
+from anchore_engine.util.docker import DockerImageReference
 
 DeleteImageResponse = namedtuple('DeleteImageResponse', ['digest', 'status', 'detail'])
 
@@ -246,6 +245,8 @@ def image(dbsession, request_inputs, bodycontent=None):
     analysis_status = params.get('analysis_status') if params else None
 
     httpcode = 500
+    input_string = None
+    image_reference = None
     try:
         for t in ['tag', 'digest', 'imageId']:
             if t in params:
@@ -253,6 +254,7 @@ def image(dbsession, request_inputs, bodycontent=None):
                 if input_string:
                     input_type = t
                     image_info = anchore_engine.common.images.get_image_info(userId, "docker", input_string, registry_lookup=False, registry_creds=(None, None))
+                    image_reference = DockerImageReference.from_info_dict(image_info)
                     break
 
         image_status_filter = image_status if image_status and image_status != 'all' else None
@@ -436,6 +438,7 @@ def image(dbsession, request_inputs, bodycontent=None):
 
     return return_object, httpcode
 
+
 def image_imageDigest(dbsession, request_inputs, imageDigest, bodycontent=None):
     method = request_inputs['method']
     params = request_inputs['params']
@@ -484,72 +487,6 @@ def image_imageDigest(dbsession, request_inputs, imageDigest, bodycontent=None):
 
     return return_object, httpcode
 
-
-#def image_import(dbsession, request_inputs, bodycontent=None):
-#    user_auth = request_inputs['auth']
-#    method = request_inputs['method']
-#    params = request_inputs['params']
-#    userId = request_inputs['userId']
-#
-#    return_object = {}
-#    httpcode = 500
-#
-#    try:
-#        jsondata = {}
-#        if bodycontent:
-#            try:
-#                jsondata = bodycontent
-#            except Exception as err:
-#                raise err
-#
-#        anchore_data = [jsondata]
-#
-#        try:
-#            # extract necessary input from anchore analysis data
-#            a = anchore_data[0]
-#            imageId = a['image']['imageId']
-#            docker_data = a['image']['imagedata']['image_report']['docker_data']
-#
-#            digests = []
-#            islocal = False
-#            if not docker_data['RepoDigests']:
-#                islocal = True
-#            else:
-#                for digest in docker_data['RepoDigests']:
-#                    digests.append(digest)
-#
-#            tags = []
-#            for tag in docker_data['RepoTags']:
-#                image_info = anchore_engine.utils.parse_dockerimage_string(tag)
-#                if islocal:
-#                    image_info['registry'] = 'localbuild'
-#                    digests.append(image_info['registry'] + "/" + image_info['repo'] + "@local:" + imageId)
-#                fulltag = image_info['registry'] + "/" + image_info['repo'] + ":" + image_info['tag']
-#                tags.append(fulltag)
-#                
-#            # add the image w input anchore_analysis, as already analyzed
-#            logger.debug("ADDING/UPDATING IMAGE IN IMAGE IMPORT: " + str(imageId))
-#            ret_list = add_or_update_image(dbsession, userId, imageId, tags=tags, digests=digests, anchore_data=anchore_data)
-#
-#            client = internal_client_for(PolicyEngineClient, userId)
-#            for image_report in ret_list:
-#                imageDigest = image_report['imageDigest']
-#                try:
-#                    resp = policy_engine_image_load(client, userId, imageId, imageDigest)
-#                except Exception as err:
-#                    logger.warn("failed to load image data into policy engine: " + str(err))
-#            # return the new image:
-#            return_object = ret_list
-#            httpcode = 200
-#        except Exception as err:
-#            httpcode = 500
-#            raise err
-#
-#    except Exception as err:
-#        return_object = anchore_engine.common.helpers.make_response_error(err, in_httpcode=httpcode)
-#
-#
-#    return(return_object, httpcode)
 
 def subscriptions(dbsession, request_inputs, subscriptionId=None, bodycontent=None):
     user_auth = request_inputs['auth']
@@ -1449,10 +1386,9 @@ def add_or_update_image(dbsession, userId, imageId, tags=[], digests=[], parentd
                                 manifest = json.dumps({})
                             if not parent_manifest:
                                 parent_manifest = json.dumps({})
-                                
+
                         except Exception as err:
                             raise anchore_engine.common.helpers.make_anchore_exception(err, input_message="cannot add image, failed to update archive/DB", input_httpcode=500)
-
                     else:
                         new_image_detail = anchore_engine.common.images.clean_docker_image_details_for_update(new_image_record['image_detail'])
 

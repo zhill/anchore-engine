@@ -9,11 +9,22 @@ from .handlers import handlers_by_artifact_type
 def filter_artifacts(artifact):
     return artifact['type'] in handlers_by_artifact_type
 
+
 def catalog_image(image):
     """
     Catalog the given image with syft, keeping only select artifacts in the returned results.
     """
     all_results = run_syft(image)
+    return convert_syft_to_engine(all_results)
+
+
+def convert_syft_to_engine(all_results):
+    """
+    Do the conversion from syft format to engine format
+
+    :param all_results:
+    :return:
+    """
 
     # transform output into analyzer-module/service "raw" analyzer json document
     nested_dict = lambda: collections.defaultdict(nested_dict)
