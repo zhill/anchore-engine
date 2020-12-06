@@ -360,3 +360,6 @@ class CatalogClient(InternalServiceClient):
 
     def list_import_content(self, operation_id, content_type):
         return self.call_api(http.anchy_get, 'imports/images/{operation}/{content_type}', path_params={'operation': operation_id, 'content_type': content_type})
+
+    def update_image_import_status(self, operation_id, status):
+        return self.call_api(http.anchy_put, 'imports/images/{operation}', path_params={'operation': operation_id}, body=json.dumps({'status': status}))
