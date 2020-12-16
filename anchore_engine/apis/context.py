@@ -17,7 +17,7 @@ class ApiRequestContextProxy(object):
         """
         try:
             return request_globals.identity
-        except:
+        except Exception:
             return None
 
     @staticmethod
@@ -36,7 +36,7 @@ class ApiRequestContextProxy(object):
                 return override
             else:
                 return request_globals.identity.user_account
-        except:
+        except Exception:
             return None
 
     @staticmethod

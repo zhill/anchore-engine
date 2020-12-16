@@ -48,7 +48,7 @@ class TTLCache(object):
     def delete(self, key):
         try:
             self.cache.pop(key)
-        except:
+        except Exception:
             pass
 
 

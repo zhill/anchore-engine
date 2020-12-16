@@ -411,7 +411,7 @@ def image(dbsession, request_inputs, bodycontent=None):
                             )
                             try:
                                 add_event(fail_event, dbsession)
-                            except:
+                            except Exception:
                                 logger.warn(
                                     "Ignoring error creating image registry lookup event"
                                 )
@@ -567,7 +567,7 @@ def image(dbsession, request_inputs, bodycontent=None):
                         )
                         try:
                             add_event(fail_event, dbsession)
-                        except:
+                        except Exception:
                             logger.warn(
                                 "Ignoring error creating image registry lookup event"
                             )
@@ -1001,7 +1001,7 @@ def events(dbsession, request_inputs, bodycontent=None):
             if params.get("since", None):
                 try:
                     since = dateparser.parse(params.get("since"))
-                except:
+                except Exception:
                     httpcode = 400
                     raise Exception(
                         "Invalid value for since query parameter, must be valid datetime string"
@@ -1011,7 +1011,7 @@ def events(dbsession, request_inputs, bodycontent=None):
             if params.get("before", None):
                 try:
                     before = dateparser.parse(params.get("before"))
-                except:
+                except Exception:
                     httpcode = 400
                     raise Exception(
                         "Invalid value before query parameter, must be valid datetime string"
@@ -1027,7 +1027,7 @@ def events(dbsession, request_inputs, bodycontent=None):
             if params.get("page", None) is not None:
                 try:
                     page = int(params.get("page"))
-                except:
+                except Exception:
                     httpcode = 400
                     raise Exception(
                         "Invalid value for page query parameter, must be valid integer greater than 0"
@@ -1041,7 +1041,7 @@ def events(dbsession, request_inputs, bodycontent=None):
             if params.get("limit", None) is not None:
                 try:
                     limit = int(params.get("limit"))
-                except:
+                except Exception:
                     httpcode = 400
                     raise Exception(
                         "Invalid value limit query parameter, must be valid integer between 1 and 1000"
@@ -1087,7 +1087,7 @@ def events(dbsession, request_inputs, bodycontent=None):
             if params.get("since", None):
                 try:
                     since = dateparser.parse(params.get("since"))
-                except:
+                except Exception:
                     httpcode = 400
                     raise Exception(
                         "Invalid value for since query parameter, must be valid datetime string"
@@ -1097,7 +1097,7 @@ def events(dbsession, request_inputs, bodycontent=None):
             if params.get("before", None):
                 try:
                     before = dateparser.parse(params.get("before"))
-                except:
+                except Exception:
                     httpcode = 400
                     raise Exception(
                         "Invalid value before query parameter, must be valid datetime string"
@@ -1610,7 +1610,7 @@ def perform_vulnerability_scan(
             last_vuln_result = obj_store.get_document(
                 userId, "vulnerability_scan", compare_archiveId
             )
-        except:
+        except Exception:
             pass
 
         # compare them
@@ -1663,7 +1663,7 @@ def perform_vulnerability_scan(
                 )
                 try:
                     add_event(success_event, dbsession)
-                except:
+                except Exception:
                     logger.warn(
                         "Ignoring error creating image vulnerability update event"
                     )
@@ -1724,7 +1724,7 @@ def perform_policy_evaluation(
         try:
             imageId = image_detail["imageId"]
             break
-        except:
+        except Exception:
             pass
 
     # do the image load, just in case it was missed in analyze...
@@ -1811,7 +1811,7 @@ def perform_policy_evaluation(
                         last_evaluation_result["status"] = "pass"
                     else:
                         last_evaluation_result["status"] = "fail"
-                except:
+                except Exception:
                     logger.warn("no last eval record - skipping")
 
             obj_store.put_document(
@@ -1860,7 +1860,7 @@ def perform_policy_evaluation(
                     )
                     try:
                         add_event(success_event, dbsession)
-                    except:
+                    except Exception:
                         logger.warn(
                             "Ignoring error creating image policy evaluation update event"
                         )
@@ -2002,7 +2002,7 @@ def add_or_update_image(
                                     ] = anchore_engine.common.helpers.extract_analyzer_content(
                                         anchore_data, content_type, manifest=manifest
                                     )
-                                except:
+                                except Exception:
                                     image_content_data[content_type] = {}
                             if image_content_data:
                                 logger.debug("adding image content data to archive")
@@ -2265,7 +2265,7 @@ def _delete_image_for_real(userId, image_record, dbsession, image_ids, image_ful
                 )
             )
             rc = pe_client.delete_image(user_id=userId, image_id=img_id)
-    except:
+    except Exception:
         logger.exception("Failed deleting image from policy engine")
         raise
 
@@ -2532,7 +2532,7 @@ def add_event_json(event_json, dbsession, quiet=True):
             payload=added_event_json,
         )
         return added_event_json
-    except:
+    except Exception:
         if quiet:
             logger.exception(
                 "Ignoring error creating/notifying event: {}".format(event_json)
@@ -2602,7 +2602,7 @@ def list_evals_impl(
         try:
             latest_eval_record["result"] = latest_eval_result
             records = [latest_eval_record]
-        except:
+        except Exception:
             raise Exception(
                 "interactive or newest_only eval requested, but unable to perform eval at this time"
             )
@@ -2614,7 +2614,7 @@ def list_evals_impl(
                     userId, "policy_evaluations", record["evalId"]
                 )
                 record["result"] = result
-            except:
+            except Exception:
                 record["result"] = {}
 
     return records

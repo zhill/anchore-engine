@@ -806,7 +806,7 @@ class VulnerabilityFeed(AnchoreServiceFeed):
                     )
                     .one_or_none()
                 )
-            except:
+            except Exception:
                 logger.debug(
                     "No current record found for {}".format(vulnerability_record)
                 )
@@ -1261,7 +1261,7 @@ def notify_event(event: EventBase, client: CatalogClient, operation_id=None):
 
     try:
         logger.info("Event: {} (operation_id={})".format(event.to_json(), operation_id))
-    except:
+    except Exception:
         logger.exception("Error logging event")
 
 

@@ -40,7 +40,7 @@ try:
 
     # Separate logger for use during bootstrap when logging may not be fully configured
     from twisted.python import log
-except:
+except Exception:
     import logging
 
     logger = logging.getLogger(__name__)
@@ -64,10 +64,10 @@ def get_layertarfile(unpackdir, cachedir, layer):
                 try:
                     # try to update atime for the file
                     os.utime(layer_candidate, None)
-                except:
+                except Exception:
                     pass
                 return layer_candidate
-        except:
+        except Exception:
             pass
 
     return None
@@ -101,7 +101,7 @@ def handle_tar_error_post(unpackdir=None, rootfsdir=None, handled_post_metadata=
                 if os.path.isdir(rmfile):
                     try:
                         os.rmdir(rmfile)
-                    except:
+                    except Exception:
                         pass
 
     return True
@@ -248,7 +248,7 @@ def get_tar_filenames(layertar):
         )
         layertarfile = tarfile.open(layertar, mode="r", format=tarfile.PAX_FORMAT)
         ret = layertarfile.getnames()
-    except:
+    except Exception:
         # python tarfile fils to unpack some docker image layers due to PAX header issue, try another method
         logger.debug(
             "using tar command to get file names from tarfile={}".format(layertar)
@@ -743,7 +743,7 @@ def get_image_metadata_v1(
 
     try:
         imageArch = manifest_data["architecture"]
-    except:
+    except Exception:
         imageArch = ""
 
     try:
@@ -760,17 +760,17 @@ def get_image_metadata_v1(
             hel = json.loads(rawhel["v1Compatibility"])
             try:
                 lsize = hel["Size"]
-            except:
+            except Exception:
                 lsize = 0
 
             try:
                 lcreatedby = " ".join(hel["container_config"]["Cmd"])
-            except:
+            except Exception:
                 lcreatedby = ""
 
             try:
                 lcreated = hel["created"]
-            except:
+            except Exception:
                 lcreated = ""
             lid = layers[count]
             count = count + 1
@@ -913,12 +913,12 @@ def get_image_metadata_v2(
 
             try:
                 lcreatedby = hel["created_by"]
-            except:
+            except Exception:
                 lcreatedby = ""
 
             try:
                 lcreated = hel["created"]
-            except:
+            except Exception:
                 lcreated = ""
 
             hfinal.append(
@@ -1360,7 +1360,7 @@ def get_anchorelock(lockId=None, driver=None):
         if not os.path.exists(os.path.join(anchore_data_dir, "conf")):
             try:
                 os.makedirs(os.path.join(anchore_data_dir, "conf"))
-            except:
+            except Exception:
                 pass
 
     try:
@@ -1384,7 +1384,7 @@ def get_anchorelock(lockId=None, driver=None):
                     same = filecmp.cmp(default_file, installed_file)
                     if not same:
                         do_copy = True
-                except:
+                except Exception:
                     do_copy = True
 
                 # if not filecmp.cmp(default_file, installed_file):

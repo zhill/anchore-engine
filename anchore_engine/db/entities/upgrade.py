@@ -15,7 +15,7 @@ try:
 
     # Separate logger for use during bootstrap when logging may not be fully configured
     from twisted.python import log
-except:
+except Exception:
     import logging
 
     logger = logging.getLogger(__name__)

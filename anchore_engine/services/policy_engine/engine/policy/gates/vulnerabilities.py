@@ -400,14 +400,14 @@ class VulnerabilityMatchTrigger(BaseTrigger):
                                         trigger_fname = image_cpe.pkg_path.split("/")[
                                             -1
                                         ]
-                                    except:
+                                    except Exception:
                                         trigger_fname = None
                                 elif image_cpe.pkg_type in ["npm"]:
                                     try:
                                         trigger_fname = image_cpe.pkg_path.split("/")[
                                             -2
                                         ]
-                                    except:
+                                    except Exception:
                                         trigger_fname = None
 
                                 if not trigger_fname:

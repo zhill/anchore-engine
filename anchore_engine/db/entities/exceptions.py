@@ -12,7 +12,7 @@ try:
 
     # Separate logger for use during bootstrap when logging may not be fully configured
     from twisted.python import log
-except:
+except Exception:
     import logging
 
     logger = logging.getLogger(__name__)
@@ -29,10 +29,10 @@ def _get_pgcode_from_ex(ex):
     pgcode = None
     try:
         pgcode = ex.orig.pgcode
-    except:
+    except Exception:
         try:
             pgcode = ex.orig.args[2]
-        except:
+        except Exception:
             pass
 
     if not pgcode:

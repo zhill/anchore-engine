@@ -30,16 +30,16 @@ def fpost_urllib(url, **kwargs):
     try:
         try:
             headers = kwargs["headers"]
-        except:
+        except Exception:
             headers = {}
         try:
             aheader = urllib3.util.make_headers(basic_auth=":".join(kwargs["auth"]))
             headers.update(aheader)
-        except:
+        except Exception:
             pass
         try:
             payload = kwargs["data"]
-        except:
+        except Exception:
             payload = None
 
         r = http.request("POST", url, headers=headers, body=payload)
@@ -48,7 +48,7 @@ def fpost_urllib(url, **kwargs):
 
         try:
             jsondata = json.loads(str(rawdata, "utf-8"))
-        except:
+        except Exception:
             jsondata = {}
     except Exception as err:
         rawdata = str(err)
@@ -69,7 +69,7 @@ def fpost_req(url, **kwargs):
 
         try:
             jsondata = json.loads(str(rawdata, "utf-8"))
-        except:
+        except Exception:
             jsondata = {}
     except Exception as err:
         rawdata = str(err)
@@ -83,16 +83,16 @@ def fput_urllib(url, **kwargs):
     try:
         try:
             headers = kwargs["headers"]
-        except:
+        except Exception:
             headers = {}
         try:
             aheader = urllib3.util.make_headers(basic_auth=":".join(kwargs["auth"]))
             headers.update(aheader)
-        except:
+        except Exception:
             pass
         try:
             payload = kwargs["data"]
-        except:
+        except Exception:
             payload = None
 
         r = http.request("PUT", url, headers=headers, body=payload)
@@ -101,7 +101,7 @@ def fput_urllib(url, **kwargs):
 
         try:
             jsondata = json.loads(str(rawdata, "utf-8"))
-        except:
+        except Exception:
             jsondata = {}
     except Exception as err:
         rawdata = str(err)
@@ -122,7 +122,7 @@ def fput_req(url, **kwargs):
 
         try:
             jsondata = json.loads(str(rawdata, "utf-8"))
-        except:
+        except Exception:
             jsondata = {}
     except Exception as err:
         rawdata = str(err)
@@ -137,16 +137,16 @@ def fget_urllib(url, **kwargs):
     try:
         try:
             headers = kwargs["headers"]
-        except:
+        except Exception:
             headers = {}
         try:
             aheader = urllib3.util.make_headers(basic_auth=":".join(kwargs["auth"]))
             headers.update(aheader)
-        except:
+        except Exception:
             pass
         try:
             payload = kwargs["data"]
-        except:
+        except Exception:
             payload = None
 
         r = http.request("GET", url, headers=headers, body=payload)
@@ -155,7 +155,7 @@ def fget_urllib(url, **kwargs):
 
         try:
             jsondata = json.loads(str(rawdata, "utf-8"))
-        except:
+        except Exception:
             jsondata = {}
     except Exception as err:
         rawdata = str(err)
@@ -176,7 +176,7 @@ def fget_req(url, **kwargs):
 
         try:
             jsondata = json.loads(str(rawdata, "utf-8"))
-        except:
+        except Exception:
             jsondata = {}
     except Exception as err:
         rawdata = str(err)
@@ -192,16 +192,16 @@ def fdelete_urllib(url, **kwargs):
     try:
         try:
             headers = kwargs["headers"]
-        except:
+        except Exception:
             headers = {}
         try:
             aheader = urllib3.util.make_headers(basic_auth=":".join(kwargs["auth"]))
             headers.update(aheader)
-        except:
+        except Exception:
             pass
         try:
             payload = kwargs["data"]
-        except:
+        except Exception:
             payload = None
 
         r = http.request("DELETE", url, headers=headers, body=payload)
@@ -210,7 +210,7 @@ def fdelete_urllib(url, **kwargs):
 
         try:
             jsondata = json.loads(str(rawdata, "utf-8"))
-        except:
+        except Exception:
             jsondata = {}
     except Exception as err:
         rawdata = str(err)
@@ -231,7 +231,7 @@ def fdelete_req(url, **kwargs):
         # rawdata = r.text
         try:
             jsondata = json.loads(str(rawdata, "utf-8"))
-        except:
+        except Exception:
             jsondata = {}
     except Exception as err:
         rawdata = str(err)

@@ -117,7 +117,7 @@ def initialized_feed_metadata(anchore_db):
             for g in fmeta.groups:
                 db.add(g)
         db.commit()
-    except:
+    except Exception:
         db.rollback()
 
 

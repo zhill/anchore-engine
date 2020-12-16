@@ -158,7 +158,7 @@ def make_response_vulnerability(vulnerability_type, vulnerability_data):
                 for k in list(keymap.keys()):
                     try:
                         el[k] = row[header.index(keymap[k])]
-                    except:
+                    except Exception:
                         el[k] = "None"
 
                     # conversions
@@ -331,7 +331,7 @@ def make_response_image(image_record, include_detail=True):
         try:
             annotation_data = json.loads(image_record["annotations"])
             image_record["annotations"] = annotation_data
-        except:
+        except Exception:
             pass
 
     # try to assemble full strings
@@ -352,7 +352,7 @@ def make_response_image(image_record, include_detail=True):
                     + ":"
                     + image_detail["tag"]
                 )
-            except:
+            except Exception:
                 image_detail["fulldigest"] = None
                 image_detail["fulltag"] = None
 
@@ -367,7 +367,7 @@ def make_response_image(image_record, include_detail=True):
                         ).isoformat()
                         + "Z"
                     )
-                except:
+                except Exception:
                     pass
 
     if not include_detail:
@@ -379,7 +379,7 @@ def make_response_image(image_record, include_detail=True):
                 datetime.datetime.utcfromtimestamp(image_record[datekey]).isoformat()
                 + "Z"
             )
-        except:
+        except Exception:
             pass
 
     for removekey in ["record_state_val", "record_state_key"]:
@@ -864,7 +864,7 @@ def get_image_by_imageId(imageId, history=None):
         )
         try:
             imageDigest = lookup_imageDigest_from_imageId(request_inputs, imageId)
-        except:
+        except Exception:
             imageDigest = imageId
 
         return_object, httpcode = images_imageDigest(request_inputs, imageDigest)
@@ -884,7 +884,7 @@ def delete_image_by_imageId(imageId, force=False):
         )
         try:
             imageDigest = lookup_imageDigest_from_imageId(request_inputs, imageId)
-        except:
+        except Exception:
             imageDigest = imageId
 
         request_inputs = anchore_engine.apis.do_request_prep(request, default_params={})
@@ -927,7 +927,7 @@ def get_image_policy_check_by_imageId(
         request_inputs = anchore_engine.apis.do_request_prep(request, default_params={})
         try:
             imageDigest = lookup_imageDigest_from_imageId(request_inputs, imageId)
-        except:
+        except Exception:
             imageDigest = imageId
 
         request_inputs = anchore_engine.apis.do_request_prep(
@@ -1058,7 +1058,7 @@ def get_image_content_by_type_imageId(imageId, ctype):
         request_inputs = anchore_engine.apis.do_request_prep(request, default_params={})
         try:
             imageDigest = lookup_imageDigest_from_imageId(request_inputs, imageId)
-        except:
+        except Exception:
             imageDigest = imageId
 
         return_object, httpcode = get_image_content_by_type(imageDigest, ctype)
@@ -1103,7 +1103,7 @@ def get_image_vulnerability_types_by_imageId(imageId):
         request_inputs = anchore_engine.apis.do_request_prep(request, default_params={})
         try:
             imageDigest = lookup_imageDigest_from_imageId(request_inputs, imageId)
-        except:
+        except Exception:
             imageDigest = imageId
 
         return_object, httpcode = get_image_vulnerability_types(imageDigest)
@@ -1154,7 +1154,7 @@ def get_image_vulnerabilities_by_type_imageId(imageId, vtype):
         request_inputs = anchore_engine.apis.do_request_prep(request, default_params={})
         try:
             imageDigest = lookup_imageDigest_from_imageId(request_inputs, imageId)
-        except:
+        except Exception:
             imageDigest = imageId
 
         return_object, httpcode = get_image_vulnerabilities_by_type(
@@ -1400,7 +1400,7 @@ def analyze_image(
                                     "subscription_key": fulltag,
                                 }
                             )
-                        except:
+                        except Exception:
                             try:
                                 client.update_subscription(
                                     {
@@ -1408,7 +1408,7 @@ def analyze_image(
                                         "subscription_key": fulltag,
                                     }
                                 )
-                            except:
+                            except Exception:
                                 pass
                     else:
                         if enable_subscriptions and sub_type in enable_subscriptions:

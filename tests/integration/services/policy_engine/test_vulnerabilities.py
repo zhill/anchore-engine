@@ -96,7 +96,7 @@ def _rescan_cve(img_id):
         v = rescan_image(db, img)
         db.commit()
         return v
-    except:
+    except Exception:
         db.rollback()
         raise
 
@@ -129,7 +129,7 @@ def test_vuln_image_updates(test_data_env):
         )
         db.add(f)
         db.commit()
-    except:
+    except Exception:
         logger.exception("Exception commiting update of feed sync timestamps")
         db.rollback()
 

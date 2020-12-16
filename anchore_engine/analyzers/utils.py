@@ -55,7 +55,7 @@ def init_analyzer_cmdline(argv, name):
     # Removed by zhill since discover_imageId not migrated from anchore repo
     # try:
     #     fullid = discover_imageId(argv[2])
-    # except:
+    # except Exception:
     # fullid = None
 
     # if fullid:
@@ -187,7 +187,7 @@ def get_distro_from_squashtar(squashtar, unpackdir=None):
                         except Exception as err:
                             pass
                 success = True
-            except:
+            except Exception:
                 success = False
 
         if not success and metamap["system-release-cpe"] in tarfilenames:
@@ -212,10 +212,10 @@ def get_distro_from_squashtar(squashtar, unpackdir=None):
 
                             meta["DISTRO"] = distro
                             meta["DISTROVERS"] = vers
-                        except:
+                        except Exception:
                             pass
                 success = True
-            except:
+            except Exception:
                 success = False
 
         if not success and metamap["redhat-release"] in tarfilenames:
@@ -247,10 +247,10 @@ def get_distro_from_squashtar(squashtar, unpackdir=None):
                                 meta["DISTRO"] = distro
                             if vers:
                                 meta["DISTROVERS"] = vers
-                        except:
+                        except Exception:
                             pass
                 success = True
-            except:
+            except Exception:
                 success = False
 
         if not success and metamap["busybox"] in tarfilenames:
@@ -268,7 +268,7 @@ def get_distro_from_squashtar(squashtar, unpackdir=None):
                 except Exception as err:
                     meta["DISTROVERS"] = "0"
                 success = True
-            except:
+            except Exception:
                 success = False
 
         if (
@@ -288,7 +288,7 @@ def get_distro_from_squashtar(squashtar, unpackdir=None):
                         elif re.match(".*sid.*", line):
                             meta["DISTROVERS"] = "unstable"
                 success = True
-            except:
+            except Exception:
                 success = False
 
     if not meta["DISTRO"]:
@@ -799,7 +799,7 @@ def make_anchoretmpdir(tmproot):
     try:
         os.makedirs(tmpdir)
         return tmpdir
-    except:
+    except Exception:
         return False
 
 

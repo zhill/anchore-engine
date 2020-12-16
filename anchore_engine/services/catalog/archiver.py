@@ -917,7 +917,7 @@ class DeleteArchivedImageTask(object):
                 self.archive_record["manifest_key"],
             )
             logger.debug("Image analysis archive deletion complete")
-        except:
+        except Exception:
             logger.exception("Failure deleting archive content")
             raise
 
@@ -961,7 +961,7 @@ class RestoreArchivedImageTask(object):
             self._execute()
             logger.debug("Cleanly executed archive execute function")
             add_event(ImageRestored(self.account, self.image_digest))
-        except:
+        except Exception:
             logger.exception("Error executing restore of image analysis from archive")
             add_event(ImageRestoreFailed(self.account, self.image_digest))
             raise
@@ -1347,7 +1347,7 @@ class ArchiveImageTask(object):
 
                         try:
                             vuln_artifacts = self.archive_vuln_history(img_archive)
-                        except:
+                        except Exception:
                             logger.exception("Error saving vuln history")
                             raise
 
@@ -1355,7 +1355,7 @@ class ArchiveImageTask(object):
                             eval_artifacts = self.archive_policy_evaluations(
                                 src_obj_mgr, img_archive, session
                             )
-                        except:
+                        except Exception:
                             logger.exception("Error saving policy evals")
                             raise
 

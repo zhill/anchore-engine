@@ -39,7 +39,7 @@ from anchore_engine.util.langpack import compare_versions as langpack_compare_ve
 
 try:
     from anchore_engine.subsys import logger as log
-except:
+except Exception:
     import logging
 
     logger = logging.getLogger(__name__)
@@ -318,7 +318,7 @@ class Vulnerability(Base):
                 sev = "High"
             else:
                 sev = "Unknown"
-        except:
+        except Exception:
             sev = "Unknown"
         return sev
 
@@ -672,7 +672,7 @@ class NvdMetadata(Base):
         else:
             try:
                 ret = float(score)
-            except:
+            except Exception:
                 ret = -1.0
 
         return ret
@@ -807,7 +807,7 @@ class NvdV2Metadata(Base):
             score = metric.get(base_metrics_key).get(score_key, -1.0)
             try:
                 score = float(score)
-            except:
+            except Exception:
                 score = -1.0
         else:
             score = -1.0
@@ -1152,7 +1152,7 @@ class VulnDBMetadata(Base):
             score = metric.get(base_metrics_key).get(score_key, -1.0)
             try:
                 score = float(score)
-            except:
+            except Exception:
                 score = -1.0
         else:
             score = -1.0
@@ -1419,7 +1419,7 @@ class CpeVulnerability(Base):
             final_cpe[5] = self.update
             final_cpe[6] = self.meta
             ret = ":".join(final_cpe)
-        except:
+        except Exception:
             ret = None
 
         return ret
@@ -1488,7 +1488,7 @@ class CpeV2Vulnerability(Base):
             final_cpe[5] = self.update
             final_cpe[6] = self.other
             ret = ":".join(final_cpe)
-        except:
+        except Exception:
             ret = None
 
         return ret
@@ -1523,7 +1523,7 @@ class CpeV2Vulnerability(Base):
             final_cpe[11] = self.target_hw
             final_cpe[12] = self.other
             ret = ":".join(final_cpe)
-        except:
+        except Exception:
             ret = None
 
         return ret
@@ -1607,7 +1607,7 @@ class VulnDBCpe(Base):
 
             uri = ":".join(uri_parts)
             ret = uri.strip(":")  # remove any trailing :
-        except:
+        except Exception:
             ret = None
 
         return ret
@@ -1632,7 +1632,7 @@ class VulnDBCpe(Base):
             ]
 
             ret = ":".join(final_cpe)
-        except:
+        except Exception:
             ret = None
 
         return ret
@@ -2122,7 +2122,7 @@ class ImageCpe(Base):
             final_cpe[5] = self.update
             final_cpe[6] = self.meta
             ret = ":".join(final_cpe)
-        except:
+        except Exception:
             ret = None
 
         return ret
@@ -2157,7 +2157,7 @@ class ImageCpe(Base):
             # final_cpe[11] = self.target_hw
             final_cpe[12] = self.meta
             ret = ":".join(final_cpe)
-        except:
+        except Exception:
             ret = None
         return ret
 
@@ -2756,7 +2756,7 @@ class VersionPreservingDistroMapper(IDistroMapper):
             return [
                 DistroTuple(distro=distro, version=v, flavor=flavor) for v in versions
             ]
-        except:
+        except Exception:
             log.exception(
                 "Failed to fully construct the mapped distro from: {}, {}, {}".format(
                     self.from_distro, self.from_version, self.from_like_distro

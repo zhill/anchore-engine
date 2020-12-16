@@ -69,7 +69,7 @@ class DbAccountStore(
 
             try:
                 identity, creds = idp.lookup_user(identifier)
-            except:
+            except Exception:
                 logger.exception("Error looking up user")
                 identity = None
                 creds = None
@@ -169,7 +169,7 @@ class TokenAccountStore(DbAccountStore):
 
             try:
                 identity, creds = idp.lookup_user_by_uuid(identifier)
-            except:
+            except Exception:
                 logger.exception("Error looking up user")
                 identity = None
                 creds = None

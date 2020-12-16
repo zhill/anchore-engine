@@ -324,7 +324,7 @@ class DataFeeds(object):
                     fail_result = build_feed_sync_results(feed=f.__feed_name__)
                     fail_result["total_time_seconds"] = time.time() - t
                     result.append(fail_result)
-            except:
+            except Exception:
                 logger.exception(
                     "Error syncing feed {} (operation_id={})".format(
                         f.__feed_name__, operation_id
@@ -356,7 +356,7 @@ class DataFeeds(object):
                     catalog_client,
                     operation_id=operation_id,
                 )
-            except:
+            except Exception:
                 logger.exception("Error emitting feed sync failure events")
             finally:
                 feed_result = build_feed_sync_results(feed=name, status="failure")
@@ -598,7 +598,7 @@ class DataFeeds(object):
                         finally:
                             try:
                                 feed_data_repo.teardown()
-                            except:
+                            except Exception:
                                 logger.exception(
                                     "Could not cleanup download repo due to error"
                                 )

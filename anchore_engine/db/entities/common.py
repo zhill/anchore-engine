@@ -19,7 +19,7 @@ try:
 
     # Separate logger for use during bootstrap when logging may not be fully configured
     from twisted.python import log
-except:
+except Exception:
     import logging
 
     logger = logging.getLogger(__name__)
@@ -199,7 +199,7 @@ def do_disconnect():
 def get_params(localconfig):
     try:
         db_auth = localconfig["credentials"]["database"]
-    except:
+    except Exception:
         raise Exception(
             "could not locate credentials->database entry from configuration: add 'database' section to 'credentials' section in configuration file"
         )
@@ -219,7 +219,7 @@ def get_params(localconfig):
 def normalize_db_params(db_params):
     try:
         db_connect = db_params["db_connect"]
-    except:
+    except Exception:
         raise Exception("input db_connect must be set")
 
     db_connect_args = db_params.get("db_connect_args", {})
@@ -316,7 +316,7 @@ def session_scope():
         yield session
         session.commit()
         logger.spew("DB: committing session: " + str(session))
-    except:
+    except Exception:
         logger.spew("DB: rollbacking session: " + str(session))
         session.rollback()
         raise

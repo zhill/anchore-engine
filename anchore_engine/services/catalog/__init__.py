@@ -194,7 +194,7 @@ def handle_account_resource_cleanup(*args, **kwargs):
     logger.debug("FIRING DONE: " + str(watcher))
     try:
         kwargs["mythread"]["last_return"] = handler_success
-    except:
+    except Exception:
         pass
 
     if anchore_engine.subsys.metrics.is_enabled() and handler_success:
@@ -234,7 +234,7 @@ def handle_vulnerability_scan(*args, **kwargs):
             )
             try:
                 kwargs["mythread"]["last_return"] = False
-            except:
+            except Exception:
                 pass
             return True
 
@@ -351,7 +351,7 @@ def handle_vulnerability_scan(*args, **kwargs):
     logger.debug("FIRING DONE: " + str(watcher))
     try:
         kwargs["mythread"]["last_return"] = handler_success
-    except:
+    except Exception:
         pass
 
     if anchore_engine.subsys.metrics.is_enabled() and handler_success:
@@ -424,7 +424,7 @@ def handle_service_watcher(*args, **kwargs):
                     try:
                         try:
                             status = json.loads(service["short_description"])
-                        except:
+                        except Exception:
                             status = {"up": False, "available": False}
 
                         # set to down until the response can be parsed
@@ -475,7 +475,7 @@ def handle_service_watcher(*args, **kwargs):
                                         service_update_record[
                                             "short_description"
                                         ] = json.dumps(status)
-                                    except:
+                                    except Exception:
                                         service_update_record[
                                             "short_description"
                                         ] = str(status)
@@ -598,7 +598,7 @@ def handle_service_watcher(*args, **kwargs):
         logger.debug("FIRING DONE: service watcher")
         try:
             kwargs["mythread"]["last_return"] = True
-        except:
+        except Exception:
             pass
 
         time.sleep(cycle_timer)
@@ -831,7 +831,7 @@ def handle_repo_watcher(*args, **kwargs):
     logger.debug("FIRING DONE: " + str(watcher))
     try:
         kwargs["mythread"]["last_return"] = handler_success
-    except:
+    except Exception:
         pass
 
     if anchore_engine.subsys.metrics.is_enabled() and handler_success:
@@ -1064,7 +1064,7 @@ def handle_image_watcher(*args, **kwargs):
                                                         )
                                                     )
                                                 )
-                                        except:
+                                        except Exception:
                                             pass
                                     is_latest = False
 
@@ -1138,7 +1138,7 @@ def handle_image_watcher(*args, **kwargs):
     logger.debug("FIRING DONE: " + str(watcher))
     try:
         kwargs["mythread"]["last_return"] = handler_success
-    except:
+    except Exception:
         pass
 
     if anchore_engine.subsys.metrics.is_enabled() and handler_success:
@@ -1224,7 +1224,7 @@ def handle_policyeval(*args, **kwargs):
             )
             try:
                 kwargs["mythread"]["last_return"] = False
-            except:
+            except Exception:
                 pass
             return True
 
@@ -1337,7 +1337,7 @@ def handle_policyeval(*args, **kwargs):
     logger.debug("FIRING DONE: " + str(watcher))
     try:
         kwargs["mythread"]["last_return"] = handler_success
-    except:
+    except Exception:
         pass
 
     if anchore_engine.subsys.metrics.is_enabled() and handler_success:
@@ -1374,7 +1374,7 @@ def handle_analyzer_queue(*args, **kwargs):
     max_working_time = 36000
     try:
         max_working_time = int(localconfig["image_analyze_timeout_seconds"])
-    except:
+    except Exception:
         max_working_time = 36000
 
     fair_share_enabled = True
@@ -1388,7 +1388,7 @@ def handle_analyzer_queue(*args, **kwargs):
             == "false"
         ):
             fair_share_enabled = False
-    except:
+    except Exception:
         fair_share_enabled = True
 
     all_ready = anchore_engine.clients.services.common.check_services_ready(
@@ -1400,7 +1400,7 @@ def handle_analyzer_queue(*args, **kwargs):
         )
         try:
             kwargs["mythread"]["last_return"] = False
-        except:
+        except Exception:
             pass
         return True
 
@@ -1550,13 +1550,13 @@ def handle_analyzer_queue(*args, **kwargs):
                 q_client.update_queueid(
                     "images_to_analyze", src_queueId=src, dst_queueId=dst
                 )
-        except:
+        except Exception:
             logger.exception("Ignoring errors rebalancing analysis queue")
 
     logger.debug("FIRING DONE: " + str(watcher))
     try:
         kwargs["mythread"]["last_return"] = handler_success
-    except:
+    except Exception:
         pass
 
     if anchore_engine.subsys.metrics.is_enabled() and handler_success:
@@ -1613,7 +1613,7 @@ def handle_notifications(*args, **kwargs):
             notification_timeout = int(
                 localconfig["webhooks"]["notification_retry_timeout"]
             )
-        except:
+        except Exception:
             notification_timeout = 30
 
         logger.debug("notification timeout: " + str(notification_timeout))
@@ -1637,7 +1637,7 @@ def handle_notifications(*args, **kwargs):
             else:
                 notify_events = False
                 event_levels = None
-        except:
+        except Exception:
             logger.exception("Ignoring errors parsing for event_log configuration")
             notify_events = False
             event_levels = None
@@ -1809,7 +1809,7 @@ def handle_notifications(*args, **kwargs):
     logger.debug("FIRING DONE: " + str(watcher))
     try:
         kwargs["mythread"]["last_return"] = handler_success
-    except:
+    except Exception:
         pass
 
     if anchore_engine.subsys.metrics.is_enabled() and handler_success:
@@ -2002,7 +2002,7 @@ def handle_image_gc(*args, **kwargs):
                             % (account, digest, current_status, expected_status)
                         )
                 # not necessary to state transition to deleted as the records should have gone
-            except:
+            except Exception:
                 logger.exception("Error deleting image, may retry on next cycle")
                 # TODO state transition to faulty to avoid further usage?
     except Exception as err:
@@ -2011,7 +2011,7 @@ def handle_image_gc(*args, **kwargs):
     logger.debug("FIRING DONE: " + str(watcher))
     try:
         kwargs["mythread"]["last_return"] = handler_success
-    except:
+    except Exception:
         pass
 
     if anchore_engine.subsys.metrics.is_enabled() and handler_success:

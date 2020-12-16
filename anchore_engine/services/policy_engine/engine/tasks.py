@@ -127,7 +127,7 @@ class FeedsFlushTask(IAsyncTask):
         #     f = DataFeeds.instance()
         #     f.flush()
         #     db.commit()
-        # except:
+        # except Exception:
         #     log.exception('Error executing feeds flush task')
         #     raise
 
@@ -208,7 +208,7 @@ class FeedsUpdateTask(IAsyncTask):
                 catalog_client,
                 self.uuid,
             )
-        except:
+        except Exception:
             logger.exception(
                 "Ignoring event generation error before feed sync. (operation_id={})".format(
                     self.uuid
@@ -255,7 +255,7 @@ class FeedsUpdateTask(IAsyncTask):
                         catalog_client,
                         self.uuid,
                     )
-            except:
+            except Exception:
                 logger.exception(
                     "Ignoring event generation error after feed sync (operation_id={})".format(
                         self.uuid
@@ -266,7 +266,7 @@ class FeedsUpdateTask(IAsyncTask):
                 self.rescan_images_created_between(
                     from_time=start_time, to_time=end_time
                 )
-            except:
+            except Exception:
                 logger.exception(
                     "Unexpected exception rescanning vulns for images added during the feed sync. (operation_id={})".format(
                         self.uuid
@@ -493,7 +493,7 @@ class ImageLoadTask(IAsyncTask):
 
                 db.commit()
                 # log.debug("TIMER TASKS: {}".format(time.time() - ts))
-            except:
+            except Exception:
                 logger.exception("Error adding image to db")
                 db.rollback()
                 raise
@@ -577,7 +577,7 @@ class ImageLoadTask(IAsyncTask):
                 ) as timeout_client:
                     doc = timeout_client.get_document(bucket, name)
                 return doc
-            except:
+            except Exception:
                 logger.exception(
                     "Error retrieving analysis json from the catalog service"
                 )
@@ -594,7 +594,7 @@ class ImageLoadTask(IAsyncTask):
                     logger.exception("HTTP exception: {}. Retrying".format(ex))
                     retry = retry - 1
                     time.sleep(retry * 3)  # Backoff and retry
-                except:
+                except Exception:
                     logger.exception("Non HTTP exception. Retrying")
                     retry = retry - 1
 

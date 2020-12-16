@@ -494,7 +494,7 @@ def process_analyzer_job(system_user_auth, qobj, layer_cache_enable):
                 for event in analysis_events:
                     try:
                         catalog_client.add_event(event)
-                    except:
+                    except Exception:
                         logger.error("Ignoring error sending event")
 
     except Exception as err:
